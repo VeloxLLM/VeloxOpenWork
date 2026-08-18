@@ -16,19 +16,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useWorkspace } from "@/react-app/shell/workspace-provider";
-import { useCheckDesktopRestriction } from "@/react-app/domains/cloud/desktop-config-provider";
-import { useDenAuth } from "@/react-app/domains/cloud/den-auth-provider";
-import {
-  OPENWORK_MODELS_PROVIDER_ID,
-  OPENWORK_MODELS_PROVIDER_NAME,
-} from "@/react-app/domains/cloud/openwork-models-promo";
 import { getConnectedProviderItems, useProviderListQuery } from "@/react-app/infra/provider-list-query";
-import { filterEntitledModelOptions } from "@/react-app/domains/connections/provider-auth/provider-policy";
-import {
-  filterCloudManagedModelOptions,
-  mergeModelOptions,
-} from "@/react-app/domains/connections/provider-auth/assigned-model-options";
-import { isCloudManagedProviderKey } from "@/react-app/domains/connections/provider-auth/cloud-provider-config";
+import { mergeModelOptions } from "@/react-app/domains/connections/provider-auth/assigned-model-options";
 import {
   Command,
   CommandCollection,
@@ -42,6 +31,7 @@ import {
 } from "@/components/ui/command";
 import { openModelPickerEvent, openProviderAuthEvent } from "@/react-app/shell/new-providers-listener";
 import { newProvidersEvent } from "@/app/lib/provider-events";
+import { t } from "@/i18n";
 
 /** Shown with their logos when no keys are connected yet. */
 const SUGGESTED_KEY_PROVIDERS = [
@@ -61,10 +51,8 @@ function getProviderDisplayName(providerId: string) {
 function useModelOptions(
   open: boolean,
   fallbackOptions: readonly ModelOption[],
-  cloudProvidersEnabled: boolean,
 ) {
   const { client, opencodeBaseUrl, selectedWorkspaceRoot } = useWorkspace();
-  const checkDesktopRestriction = useCheckDesktopRestriction();
 
   const { data, refetch } = useProviderListQuery({
     client,
@@ -87,15 +75,7 @@ function useModelOptions(
     return () => window.removeEventListener(newProvidersEvent, handler);
   }, [client, refetch]);
 
-  // Apply org-level restrictions (dev #1505) on top of the raw model list
-  // so the picker never surfaces blocked options:
-  //   - `allowZenModel` hides the built-in OpenCode provider entries when false
-  //   - `allowCustomProviders` keeps org-managed providers, plus Zen when allowed.
   return React.useMemo(() => {
-    const restrictToCloud = checkDesktopRestriction({
-      restriction: "allowCustomProviders",
-    });
-
     const options = getConnectedProviderItems(data)
       .flatMap((provider) =>
         Object.entries(provider.models).map(([id, model]) => ({
@@ -111,14 +91,8 @@ function useModelOptions(
         })),
       );
 
-    return filterEntitledModelOptions(filterCloudManagedModelOptions(
-      mergeModelOptions(options, fallbackOptions),
-      cloudProvidersEnabled,
-    ), {
-      restrictToCloud,
-      checkRestriction: checkDesktopRestriction,
-    });
-  }, [checkDesktopRestriction, cloudProvidersEnabled, data, fallbackOptions]);
+    return mergeModelOptions(options, fallbackOptions);
+  }, [data, fallbackOptions]);
 }
 
 type ModelSelectItem = {
@@ -171,10 +145,6 @@ interface ModelSelectProps {
   disabled?: boolean;
   /** When set, "All models" opens the full picker scoped to this session. */
   sessionId?: string;
-  /** Den/import includes OpenWork Models. Kept for callers; picker no longer upsells here. */
-  openWorkModelsEntitled?: boolean;
-  /** The server is waiting to reload this workspace with OpenWork Models. */
-  openWorkModelsSyncing?: boolean;
   /** Member-scoped models available before a workspace OpenCode client exists. */
   fallbackOptions?: readonly ModelOption[];
 }
@@ -187,15 +157,11 @@ export function ModelSelect({
   onChange,
   disabled = false,
   sessionId,
-  openWorkModelsSyncing = false,
   fallbackOptions = [],
 }: ModelSelectProps) {
   const [search, setSearch] = React.useState("");
   const searchInputRef = React.useRef<HTMLInputElement>(null);
-  const denAuth = useDenAuth();
-  const modelOptions = useModelOptions(open, fallbackOptions, denAuth.isSignedIn);
-  const checkDesktopRestriction = useCheckDesktopRestriction();
-  const canAddProviders = !checkDesktopRestriction({ restriction: "allowCustomProviders" });
+  const modelOptions = useModelOptions(open, fallbackOptions);
 
   const focusSearchInput = React.useCallback(() => {
     window.requestAnimationFrame(() => {
@@ -233,13 +199,12 @@ export function ModelSelect({
     onOpenChange(false);
   };
 
-  // Providers the user connected with their own key — OpenCode Zen and
-  // OpenWork Models are managed for them, so they never count as "your keys".
+  // OpenCode Zen is built in; other entries are manually configured providers.
   const keyProviders = React.useMemo(() => {
     const seen = new Map<string, string>();
     for (const option of modelOptions) {
       const id = option.providerID.trim().toLowerCase();
-      if (!id || id === "opencode" || id === OPENWORK_MODELS_PROVIDER_ID) continue;
+      if (!id || id === "opencode") continue;
       if (seen.has(id)) continue;
       seen.set(id, option.description ?? getProviderDisplayName(option.providerID));
     }
@@ -274,21 +239,21 @@ export function ModelSelect({
             <PopoverTrigger
               type="button"
               disabled={disabled}
-              aria-label="Change model"
+          aria-label={t("models.change_model")}
               aria-keyshortcuts="Meta+Alt+/"
               className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-gray-10 transition-colors hover:bg-gray-3 hover:text-gray-12 disabled:pointer-events-none disabled:opacity-60"
             />
           }
         >
           <span className="max-w-48 truncate">
-            {hideValue || (!denAuth.isSignedIn && isCloudManagedProviderKey(value.providerID))
-              ? "Select model"
-              : (selectedOption?.title ?? value.modelID ?? "Select model")}
+            {hideValue
+              ? t("models.select_model")
+              : (selectedOption?.title ?? value.modelID ?? t("models.select_model"))}
           </span>
           <ChevronDown className="h-3 w-3" />
         </TooltipTrigger>
         <TooltipContent>
-          Change model
+          {t("models.change_model")}
         </TooltipContent>
       </Tooltip>
       <PopoverContent
@@ -300,28 +265,10 @@ export function ModelSelect({
           <CommandHeader>
             <CommandInput
               ref={searchInputRef}
-              placeholder="Search models..."
+              placeholder={t("models.search_models")}
             />
           </CommandHeader>
-          <CommandEmpty>No models found.</CommandEmpty>
-          {openWorkModelsSyncing ? (
-            <div className="mx-1 mb-1 flex items-center gap-2 rounded-md border border-amber-6/60 bg-amber-2/40 px-2 py-1.5">
-              <ProviderIcon
-                providerId={OPENWORK_MODELS_PROVIDER_ID}
-                providerName={OPENWORK_MODELS_PROVIDER_NAME}
-                className="size-3.5 shrink-0 text-amber-11"
-                size={14}
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-medium text-foreground">
-                  {OPENWORK_MODELS_PROVIDER_NAME}
-                </span>
-                <span className="block truncate text-[11px] text-muted-foreground">
-                  Included — pending workspace reload…
-                </span>
-              </span>
-            </div>
-          ) : null}
+          <CommandEmpty>{t("models.no_models_found")}</CommandEmpty>
           <CommandList>
             {(group: ModelSelectGroup) => (
               <CommandGroup
@@ -366,10 +313,10 @@ export function ModelSelect({
           </CommandList>
           {/* Your API keys → provider configuration. One slot, one action: the
               label reflects whether any keys are connected yet. */}
-          {canAddProviders ? (
+          {(
             <div className="border-t border-border p-1">
               <div className="flex items-baseline px-2 pb-0.5 pt-1 text-xs text-muted-foreground">
-                Your API keys
+                {t("providers.your_api_keys")}
               </div>
               <button
                 type="button"
@@ -392,11 +339,11 @@ export function ModelSelect({
                   {!hasKeyProviders || keyProviders.length > keyProviderPreview.length ? "…" : ""}
                 </span>
                 <span className="shrink-0 text-xs font-medium text-muted-foreground">
-                  {hasKeyProviders ? "Connect more providers" : "Add your keys"}
+                  {hasKeyProviders ? t("providers.connect_more") : t("providers.add_keys")}
                 </span>
               </button>
             </div>
-          ) : null}
+          )}
           {/* Link to full model picker */}
           <div className="border-t border-border px-2 py-1.5">
             <button
@@ -409,7 +356,7 @@ export function ModelSelect({
               }}
             >
               <Settings2 className="size-3.5" />
-              All models
+              {t("models.all_models")}
             </button>
           </div>
         </Command>

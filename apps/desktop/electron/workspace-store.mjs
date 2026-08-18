@@ -155,8 +155,6 @@ export function createWorkspaceStore({
 
   function legacyDesktopBootstrapPath() {
     // An explicit bootstrap path defines an isolated installation boundary.
-    // Never let a legacy global config cross that boundary: it may contain a
-    // completed activation from another distribution or deployment.
     if (process.env.OPENWORK_DESKTOP_BOOTSTRAP_PATH?.trim()) return null;
     const primary = desktopBootstrapPath();
     if (primary === DEFAULT_DESKTOP_BOOTSTRAP_PATH && LEGACY_DESKTOP_BOOTSTRAP_PATH !== primary) {
@@ -261,33 +259,10 @@ export function createWorkspaceStore({
     const brandAppName = typeof input?.brandAppName === "string" ? input.brandAppName.trim().slice(0, 64) : "";
     const brandLogoUrl = typeof input?.brandLogoUrl === "string" ? input.brandLogoUrl.trim() : "";
     const brandIconUrl = typeof input?.brandIconUrl === "string" ? input.brandIconUrl.trim() : "";
-    const enterpriseActivationInput = input?.enterpriseActivation;
-    const enterpriseActivation = enterpriseActivationInput && typeof enterpriseActivationInput === "object"
-      ? {
-          activatedAt: typeof enterpriseActivationInput.activatedAt === "string"
-            ? enterpriseActivationInput.activatedAt.trim()
-            : "",
-          denBaseUrl: typeof enterpriseActivationInput.denBaseUrl === "string"
-            ? enterpriseActivationInput.denBaseUrl.trim()
-            : "",
-        }
-      : null;
-    const normalizedEnterpriseActivation = enterpriseActivation?.activatedAt && enterpriseActivation.denBaseUrl
-      ? enterpriseActivation
-      : null;
     return {
       baseUrl,
       ...(apiBaseUrl ? { apiBaseUrl } : {}),
       requireSignin: forceRequireSignin || input?.requireSignin === true,
-      // Only an explicit policy is carried. The artifact default is never
-      // materialized here: desktop-bootstrap.json is shared by both flavors
-      // (one application identifier, one user-data directory), so persisting
-      // the enterprise default would gate the public artifact on the same
-      // machine. Consumers fall back to their own build default when the key
-      // is absent, which is exactly the documented precedence.
-      ...(typeof input?.requireActivation === "boolean"
-        ? { requireActivation: input.requireActivation }
-        : {}),
       ...(brandAppName ? { brandAppName } : {}),
       ...(brandLogoUrl ? { brandLogoUrl } : {}),
       ...(brandIconUrl ? { brandIconUrl } : {}),
@@ -295,7 +270,6 @@ export function createWorkspaceStore({
       ...(claimLinks.length > 0 ? { claimLinks } : {}),
       ...(normalizedHandoff ? { handoff: normalizedHandoff } : {}),
       ...(normalizedPrepared ? { prepared: normalizedPrepared } : {}),
-      ...(normalizedEnterpriseActivation ? { enterpriseActivation: normalizedEnterpriseActivation } : {}),
     };
   }
 
@@ -973,144 +947,6 @@ export function createWorkspaceStore({
     });
   }
 
-  async function createRemoteWorkspace(input = {}) {
-    const baseUrl = String(input.baseUrl ?? "").trim();
-    if (!baseUrl) throw new Error("baseUrl is required");
-    if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
-      throw new Error("baseUrl must start with http:// or https://");
-    }
-    const remoteType = input.remoteType === "opencode" ? "opencode" : "openwork";
-    const directory = typeof input.directory === "string" && input.directory.trim() ? input.directory.trim() : null;
-    const rawOpenworkHostUrl = typeof input.openworkHostUrl === "string" && input.openworkHostUrl.trim()
-      ? input.openworkHostUrl.trim()
-      : null;
-    const openworkHostUrl = remoteType === "openwork"
-      ? stripOpenworkWorkspaceMount(rawOpenworkHostUrl ?? baseUrl)
-      : rawOpenworkHostUrl;
-    const openworkWorkspaceId = typeof input.openworkWorkspaceId === "string" && input.openworkWorkspaceId.trim()
-      ? input.openworkWorkspaceId.trim()
-      : remoteType === "openwork"
-        ? parseOpenworkWorkspaceIdFromUrl(rawOpenworkHostUrl) || parseOpenworkWorkspaceIdFromUrl(baseUrl)
-        : null;
-    let resolvedOpenworkWorkspaceId = openworkWorkspaceId;
-    let resolvedOpenworkWorkspaceName = input.openworkWorkspaceName ?? null;
-    if (remoteType === "openwork" && !resolvedOpenworkWorkspaceId) {
-      const discovered = await discoverOpenworkWorkspace({
-        hostUrl: openworkHostUrl ?? baseUrl,
-        token: input.openworkToken,
-        hostToken: input.openworkHostToken,
-        directory,
-      });
-      if (!discovered?.id) {
-        throw new Error(
-          directory
-            ? `OpenWork server has no workspace matching ${directory}.`
-            : "OpenWork server returned no workspaces.",
-        );
-      }
-      resolvedOpenworkWorkspaceId = String(discovered.id).trim();
-      resolvedOpenworkWorkspaceName = openworkWorkspaceDisplayName(discovered);
-    }
-    const id = remoteType === "openwork"
-      ? openworkRemoteWorkspaceId(openworkHostUrl ?? baseUrl, resolvedOpenworkWorkspaceId)
-      : remoteWorkspaceId(baseUrl, directory);
-    const workspace = normalizeWorkspaceEntry({
-      id,
-      name: String(input.displayName ?? resolvedOpenworkWorkspaceName ?? "Remote workspace"),
-      displayName: input.displayName ?? null,
-      path: directory ?? "",
-      preset: "remote",
-      workspaceType: "remote",
-      remoteType,
-      baseUrl: remoteType === "openwork" ? (openworkHostUrl ?? baseUrl) : baseUrl,
-      directory,
-      openworkHostUrl,
-      openworkToken: input.openworkToken ?? null,
-      openworkClientToken: input.openworkClientToken ?? null,
-      openworkHostToken: input.openworkHostToken ?? null,
-      openworkWorkspaceId: resolvedOpenworkWorkspaceId,
-      openworkWorkspaceName: resolvedOpenworkWorkspaceName,
-      sandboxBackend: input.sandboxBackend ?? null,
-      sandboxRunId: input.sandboxRunId ?? null,
-      sandboxContainerName: input.sandboxContainerName ?? null,
-    });
-    return mutateWorkspaceState((state) => {
-      state.workspaces = state.workspaces.filter((entry) => entry.id !== workspace.id);
-      state.workspaces.push(workspace);
-      state.selectedId = workspace.id;
-      state.activeId = workspace.id;
-      return state;
-    });
-  }
-
-  async function updateRemoteWorkspace(input = {}) {
-    const workspaceId = String(input.workspaceId ?? "").trim();
-    if (!workspaceId) throw new Error("workspaceId is required");
-    const { workspaceId: _workspaceId, ...patch } = input;
-    return mutateWorkspaceState(async (state) => {
-      const existing = state.workspaces.find((entry) => entry.id === workspaceId);
-      if (!existing) return state;
-
-      let nextWorkspace = { ...existing, ...patch };
-      const nextRemoteType = nextWorkspace.remoteType === "opencode" ? "opencode" : "openwork";
-      if (nextRemoteType === "openwork") {
-        const rawHostUrl = typeof nextWorkspace.openworkHostUrl === "string" && nextWorkspace.openworkHostUrl.trim()
-          ? nextWorkspace.openworkHostUrl.trim()
-          : null;
-        const nextBaseUrl = String(nextWorkspace.baseUrl ?? "").trim();
-        const hostUrl = stripOpenworkWorkspaceMount(rawHostUrl ?? nextBaseUrl);
-        const directory = typeof nextWorkspace.directory === "string" && nextWorkspace.directory.trim()
-          ? nextWorkspace.directory.trim()
-          : null;
-        const parsedWorkspaceId = parseOpenworkWorkspaceIdFromUrl(rawHostUrl) || parseOpenworkWorkspaceIdFromUrl(nextBaseUrl);
-        let remoteWorkspaceId = parsedWorkspaceId || (
-          typeof nextWorkspace.openworkWorkspaceId === "string" && nextWorkspace.openworkWorkspaceId.trim()
-            ? nextWorkspace.openworkWorkspaceId.trim()
-            : null
-        );
-        let remoteWorkspaceName = nextWorkspace.openworkWorkspaceName ?? null;
-        if (!remoteWorkspaceId) {
-          const discovered = await discoverOpenworkWorkspace({
-            hostUrl: hostUrl ?? nextBaseUrl,
-            token: nextWorkspace.openworkToken,
-            hostToken: nextWorkspace.openworkHostToken,
-            directory,
-          });
-          if (!discovered?.id) {
-            throw new Error(
-              directory
-                ? `OpenWork server has no workspace matching ${directory}.`
-                : "OpenWork server returned no workspaces.",
-            );
-          }
-          remoteWorkspaceId = String(discovered.id).trim();
-          remoteWorkspaceName = openworkWorkspaceDisplayName(discovered);
-        }
-        const nextId = openworkRemoteWorkspaceId(hostUrl ?? nextBaseUrl, remoteWorkspaceId);
-        nextWorkspace = normalizeWorkspaceEntry({
-          ...nextWorkspace,
-          id: nextId,
-          baseUrl: hostUrl ?? nextBaseUrl,
-          openworkHostUrl: hostUrl,
-          directory,
-          remoteType: "openwork",
-          openworkWorkspaceId: remoteWorkspaceId,
-          openworkWorkspaceName: remoteWorkspaceName,
-        });
-        if (nextId !== workspaceId) {
-          if (state.selectedId === workspaceId) state.selectedId = nextId;
-          if (state.activeId === workspaceId) state.activeId = nextId;
-          if (state.watchedId === workspaceId) state.watchedId = nextId;
-        }
-      }
-
-      state.workspaces = state.workspaces.map((entry) =>
-        entry.id === workspaceId ? nextWorkspace : entry,
-      );
-      return state;
-    });
-  }
-
   async function updateWorkspaceDisplayName(input = {}) {
     const workspaceId = String(input.workspaceId ?? "").trim();
     if (!workspaceId) throw new Error("workspaceId is required");
@@ -1197,15 +1033,8 @@ export function createWorkspaceStore({
     });
   }
 
-  async function resetOpenworkState() {
-    await rm(workspaceStatePath(), { force: true });
-    await clearDesktopBootstrapFiles();
-    return undefined;
-  }
-
   return {
     addAuthorizedRoot,
-    createRemoteWorkspace,
     createWorkspace,
     clearDesktopBootstrapConfig,
     debugDesktopBootstrapConfig,
@@ -1219,11 +1048,9 @@ export function createWorkspaceStore({
     readDesktopBootstrapConfigSync,
     readWorkspaceOpenworkConfig,
     readWorkspaceState,
-    resetOpenworkState,
     setDesktopBootstrapConfig,
     setRuntimeActiveWorkspace,
     setSelectedWorkspace,
-    updateRemoteWorkspace,
     updateWorkspaceDisplayName,
     writeWorkspaceOpenworkConfig,
     writeWorkspaceState,

@@ -2,12 +2,10 @@
 import * as React from "react";
 import {
   AlertCircle,
-  AlertTriangle,
   Archive,
   ArchiveRestore,
   ArrowLeft,
   ArrowRight,
-  Clock3,
   ChevronRight,
   Columns2,
   FolderPlus,
@@ -32,7 +30,6 @@ import { LazyMotion, Reorder, domMax, m, useDragControls } from "motion/react";
 
 import { getDisplaySessionTitle } from "../../../../app/lib/session-title";
 import type { WorkspaceInfo } from "../../../../app/lib/desktop";
-import { OpenWorkDenHelpLink } from "../../workspace/openwork-den-help-link";
 import { NotificationBell } from "../../../shell/notification-center";
 import type {
   WorkspaceConnectionState,
@@ -46,7 +43,6 @@ import {
   isWindowsPlatform,
 } from "../../../../app/utils";
 import { t } from "../../../../i18n";
-import { useBrandLogoUrl } from "../../cloud/brand-theme";
 import { canCreateWorkspaces } from "../../../../app/lib/workspace-creation-policy";
 
 import {
@@ -107,7 +103,6 @@ import {
 } from "@/components/ui/select";
 
 import { SidebarContext, useSidebarContext } from "./app-sidebar-provider";
-import { AccountStatusMenu, type AccountStatusMenuProps } from "./account-status-menu";
 import { usePlatform } from "../../../kernel/platform";
 import {
   sessionNumberAriaKeyShortcut,
@@ -679,7 +674,6 @@ function RemoteConnectionIssueCard(props: {
             >
               {props.message}
             </div>
-            <OpenWorkDenHelpLink />
             <div className="mt-2 flex flex-wrap gap-1.5">
               {props.canRecover ? (
                 <Button
@@ -847,9 +841,6 @@ export type AppSidebarProps = {
   onEditWorkspaceConnection: (workspaceId: string) => void;
   onForgetWorkspace: (workspaceId: string) => void;
   onOpenCreateWorkspace: () => void;
-  automationsActive?: boolean;
-  automationsNeedAttention?: boolean;
-  onOpenAutomations?: () => void;
   /** Opens the cross-session message search dialog (Cmd/Ctrl+Shift+F). */
   onOpenSessionSearch?: () => void;
   /** Back/forward across recently viewed conversations, rendered at the top of the sidebar. */
@@ -863,8 +854,6 @@ export type AppSidebarProps = {
   onOpenAccountSettings?: () => void;
   onOpenExtensions: () => void;
   extensionsActive?: boolean;
-  /** Live app status, shown inside the footer account menu. */
-  status: Omit<AccountStatusMenuProps, "onOpenAccountSettings">;
 };
 
 function useSessionTree(
@@ -1037,7 +1026,6 @@ export function AppSidebar(props: AppSidebarProps) {
     sessionNumberShortcutByTarget,
   };
 
-  const brandLogoUrl = useBrandLogoUrl();
   const pinnedIds = useSessionManagementStore((state) => state.pinnedIds);
   const pinnedSessions = React.useMemo(() => {
     const sessionsById = new Map<string, GlobalPinnedSessionEntry>();
@@ -1069,18 +1057,6 @@ export function AppSidebar(props: AppSidebarProps) {
         className="border-e-0 group-data-[side=left]:border-e-0 mac:**:data-[sidebar=sidebar]:bg-transparent"
       >
         <div className="hidden h-12 mac:block mac:titlebar-drag"/>
-        {brandLogoUrl ? (
-          <div
-            data-testid="brand-logo"
-            className="flex h-14 shrink-0 items-center px-3 pb-3 pt-2 mac:pt-0"
-          >
-            <img
-              src={brandLogoUrl}
-              alt="Organization logo"
-              className="max-h-9 w-auto max-w-[140px] object-contain object-left"
-            />
-          </div>
-        ) : null}
         {props.conversationHistory ? (
           <div
             className="flex shrink-0 items-center justify-end gap-0.5 px-2 pb-1 max-lg:hidden mac:absolute mac:right-1.5 mac:top-[7px] mac:z-50 mac:p-0 mac:titlebar-no-drag"
@@ -1142,26 +1118,6 @@ export function AppSidebar(props: AppSidebarProps) {
                   </kbd>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            ) : null}
-            {props.onOpenAutomations ? (
-              <SidebarDestination
-                active={props.automationsActive === true}
-                icon={Clock3}
-                label="Automations"
-                labelContent={(
-                  <span className="flex min-w-0 flex-1 items-center gap-2">
-                    <span className="truncate">Automations</span>
-                    {props.automationsNeedAttention ? (
-                      <AlertTriangle
-                        data-automations-attention-indicator
-                        className="ml-auto size-3.5 shrink-0 text-warning"
-                        aria-label="An Automation needs attention"
-                      />
-                    ) : null}
-                  </span>
-                )}
-                onSelect={props.onOpenAutomations}
-              />
             ) : null}
             <SidebarDestination
               active={props.extensionsActive === true}
@@ -1231,7 +1187,15 @@ export function AppSidebar(props: AppSidebarProps) {
         </LazyMotion>
 
         <SidebarFooter className="border-t border-sidebar-border/60 p-1.5 pe-0">
-          <AccountStatusMenu {...props.status} onOpenAccountSettings={props.onOpenAccountSettings} />
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full justify-start gap-2"
+            onClick={props.onOpenAccountSettings}
+          >
+            <Settings className="size-4" />
+            {t("settings.title")}
+          </Button>
         </SidebarFooter>
 
         <SidebarRail

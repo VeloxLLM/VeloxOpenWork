@@ -21,7 +21,7 @@ function sourceFiles(dir: string): string[] {
 describe("managed engine config guard", () => {
   test("keeps engine config.update writes behind the managed choke point", () => {
     const offenders = sourceFiles(sourceRoot)
-      .map((path) => ({ path, relativePath: relative(sourceRoot, path) }))
+      .map((path) => ({ path, relativePath: relative(sourceRoot, path).replaceAll("\\", "/") }))
       .filter((file) => file.relativePath !== allowedRelativePath)
       .filter((file) => readFileSync(file.path, "utf8").includes("config.update("))
       .map((file) => file.relativePath);

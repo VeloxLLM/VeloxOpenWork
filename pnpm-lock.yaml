@@ -301,9 +301,6 @@ importers:
       '@opencode-ai/sdk':
         specifier: ^1.18.15
         version: 1.18.18
-      '@openwork/enterprise-mcp-client':
-        specifier: workspace:*
-        version: link:../../packages/enterprise-mcp-client
       '@openwork/paths':
         specifier: workspace:*
         version: link:../../packages/paths
@@ -368,9 +365,9 @@ importers:
       '@opencode-ai/sdk':
         specifier: ^1.18.15
         version: 1.18.18
-      '@openwork/enterprise-mcp-client':
+      '@veloxopenwork/local-mcp-client':
         specifier: workspace:*
-        version: link:../../packages/enterprise-mcp-client
+        version: link:../../packages/local-mcp-client
       better-sqlite3:
         specifier: ^13.0.2
         version: 13.0.2
@@ -418,28 +415,6 @@ importers:
         specifier: ^5.6.3
         version: 5.9.3
 
-  packages/enterprise-mcp-client:
-    dependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.29.0
-        version: 1.29.0(patch_hash=b9b29e6a319e94ea968476aa440eb8586b5da9db6b8011ce749c384d186f8a10)(supports-color@8.1.1)(zod@4.3.6)
-      zod:
-        specifier: ^4.3.6
-        version: 4.3.6
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.30
-        version: 20.19.43
-      tsup:
-        specifier: ^8.5.0
-        version: 8.5.1(jiti@2.7.0)(postcss@8.5.23)(supports-color@8.1.1)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
-      tsx:
-        specifier: ^4.23.1
-        version: 4.23.1
-      typescript:
-        specifier: ^5.6.3
-        version: 5.9.3
-
   packages/headless-threads:
     dependencies:
       zod:
@@ -465,6 +440,28 @@ importers:
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.23)(supports-color@8.1.1)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  packages/local-mcp-client:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.29.0
+        version: 1.29.0(patch_hash=b9b29e6a319e94ea968476aa440eb8586b5da9db6b8011ce749c384d186f8a10)(supports-color@8.1.1)(zod@4.3.6)
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.30
+        version: 20.19.43
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.23)(supports-color@8.1.1)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
+      tsx:
+        specifier: ^4.23.1
+        version: 4.23.1
       typescript:
         specifier: ^5.6.3
         version: 5.9.3

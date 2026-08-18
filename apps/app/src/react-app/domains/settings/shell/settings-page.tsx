@@ -145,7 +145,7 @@ export function getWorkspaceSettingsTabs(): SettingsTab[] {
 
 export function getGlobalSettingsTabs(
   developerMode: boolean,
-  _capabilities: Pick<PlatformCapabilities, "autoUpdate" | "localRuntimeControl">,
+  _capabilities: Pick<PlatformCapabilities, "localRuntimeControl">,
 ): SettingsTab[] {
   const tabs: SettingsTab[] = ["ai", "appearance", "environment"];
   if (developerMode) tabs.push("debug");

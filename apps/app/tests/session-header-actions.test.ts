@@ -6,10 +6,10 @@ const sessionPagePath = fileURLToPath(
   new URL("../src/react-app/domains/session/chat/session-page.tsx", import.meta.url),
 );
 
-test("hidden Cloud sign-in does not reserve header space", () => {
+test("the session header does not expose Cloud sign-in", () => {
   const source = readFileSync(sessionPagePath, "utf8");
 
-  expect(source).toContain("{showCloudSignIn ? (");
-  expect(source).not.toContain('className={showCloudSignIn ? undefined : "invisible"}');
-  expect(source).not.toContain("disabled={!showCloudSignIn}");
+  expect(source).not.toContain("showCloudSignIn");
+  expect(source).not.toContain("openCloudSignIn");
+  expect(source).not.toContain("den.signin_button");
 });

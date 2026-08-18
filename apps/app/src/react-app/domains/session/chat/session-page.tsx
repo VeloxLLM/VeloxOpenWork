@@ -2,13 +2,11 @@
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePanelRef } from "react-resizable-panels";
-import { Cloud, FileText, Globe, Mic2, MoreHorizontal, PanelRight, TextSearch, Zap } from "lucide-react";
+import { FileText, Globe, Mic2, MoreHorizontal, PanelRight, TextSearch, Zap } from "lucide-react";
 
 import { resolveExtensionIconSrc } from "@/react-app/design-system/extension-icon-src";
 import { t } from "../../../../i18n";
 import { OPENWORK_EXTENSION_CATALOG } from "../../../../app/constants";
-import { buildDenAuthUrl, readDenBootstrapConfig } from "../../../../app/lib/den";
-import { markDesktopSignInInitiated } from "../../../../app/lib/den-sign-in-intent";
 import { type OpenworkServerClient, type OpenworkServerStatus } from "../../../../app/lib/openwork-server";
 import { getDisplaySessionTitle } from "../../../../app/lib/session-title";
 import type { BootPhase } from "../../../../app/lib/startup-boot";
@@ -50,7 +48,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { ConfirmModal } from "../../../design-system/modals/confirm-modal";
 import { usePlatform } from "../../../kernel/platform";
-import { useDenAuth } from "../../cloud/den-auth-provider";
 import ProviderAuthModal, { type ProviderAuthModalProps } from "../../connections/provider-auth/provider-auth-modal";
 import { RenameSessionModal } from "../modals/rename-session-modal";
 import { AppSidebar } from "../sidebar/app-sidebar";
@@ -70,7 +67,6 @@ import {
 import { ShareWorkspaceModal } from "../../workspace/share-workspace-modal";
 import { SessionEmptyHero } from "./session-empty-hero";
 import type { NewTaskComposerContext } from "./new-task-composer";
-import type { SessionCloudMcpMaintenanceState } from "../../connections/use-session-mcp-maintenance";
 import { OwDotTicker } from "../../../shell/dot-ticker";
 import { useReactRenderWatchdog } from "../../../shell/react-render-watchdog";
 import { useShellConfig } from "../../../shell/shell-config";
@@ -119,15 +115,6 @@ type PendingConversationHistoryNavigation = {
   targetSplitSessionId: string | null;
 };
 
-/** Live status the route feeds into the sidebar footer account menu. */
-type StatusBarOverrides = {
-  loading: boolean;
-  showSettingsButton: boolean;
-  reloadBusy: boolean;
-  reloadError: string | null;
-  openWorkConnectState: SessionCloudMcpMaintenanceState;
-};
-
 export type SessionPageHistoryControls = {
   canUndo: boolean;
   canRedo: boolean;
@@ -160,9 +147,6 @@ export type SessionPageSidebarProps = {
   onEditWorkspaceConnection: (workspaceId: string) => void;
   onForgetWorkspace: (workspaceId: string) => void;
   onOpenCreateWorkspace: () => void;
-  automationsActive?: boolean;
-  automationsNeedAttention?: boolean;
-  onOpenAutomations?: () => void;
   /** Opens the cross-session message search dialog (Cmd/Ctrl+Shift+F). */
   onOpenSessionSearch?: () => void;
   onReorderWorkspaces?: (workspaceIds: string[]) => void;
@@ -223,7 +207,6 @@ export type SessionPageProps = {
   activeQuestion?: PendingQuestion | null;
   questionReplyBusy?: boolean;
   respondQuestion?: (requestID: string, answers: string[][]) => void;
-  statusBar?: Partial<StatusBarOverrides>;
   notFoundMessage?: string | null;
   mainContentTakeover?: React.ReactNode;
   mainContentTitle?: string;
@@ -318,7 +301,6 @@ function controlStringArg(args: unknown, key: string) {
 export function SessionPage(props: SessionPageProps) {
   const { config: shellConfig } = useShellConfig();
   const platform = usePlatform();
-  const denAuth = useDenAuth();
   const isMobile = useIsMobile();
   const bootOverlayVisible = useBootOverlayVisible();
   const sidebarOpen = useUiStateStore((state) => state.sidebarOpen);
@@ -361,13 +343,6 @@ export function SessionPage(props: SessionPageProps) {
     [],
   );
   const voiceExtensionEnabled = voiceExtension ? isOpenWorkExtensionEnabled(voiceExtension) : false;
-  const showCloudSignIn = shellConfig.cloudSignin && !denAuth.isSignedIn && denAuth.status !== "checking";
-  const openCloudSignIn = useCallback(() => {
-    const baseUrl = readDenBootstrapConfig().baseUrl;
-    markDesktopSignInInitiated();
-    // Label stays "Sign in"; opens the sign-up tab so new users aren't defaulted into sign-in.
-    platform.openLink(buildDenAuthUrl(baseUrl, "sign-up"));
-  }, [platform]);
 
   useReactRenderWatchdog("SessionPage", {
     selectedSessionId: props.selectedSessionId,
@@ -1062,9 +1037,6 @@ export function SessionPage(props: SessionPageProps) {
           onForgetWorkspace={props.sidebar.onForgetWorkspace}
           onOpenCreateWorkspace={props.sidebar.onOpenCreateWorkspace}
           onOpenSessionSearch={props.sidebar.onOpenSessionSearch}
-          automationsActive={props.sidebar.automationsActive}
-          automationsNeedAttention={props.sidebar.automationsNeedAttention}
-          onOpenAutomations={props.sidebar.onOpenAutomations}
           conversationHistory={{
             canGoBack: canGoBackInConversationHistory,
             canGoForward: canGoForwardInConversationHistory,
@@ -1075,20 +1047,6 @@ export function SessionPage(props: SessionPageProps) {
           onOpenAccountSettings={props.onOpenSettings}
           onOpenExtensions={props.onOpenExtensions}
           extensionsActive={props.extensionsActive}
-          status={{
-            clientConnected: props.clientConnected,
-            openworkServerStatus: props.openworkServerStatus,
-            developerMode: props.developerMode,
-            showConnectionStatus: Boolean(props.selectedWorkspaceId),
-            providerConnectedIds: props.providerConnectedIds,
-            mcpConnectedCount: props.mcpConnectedCount,
-            loading: props.statusBar?.loading ?? false,
-            showSettingsButton: props.statusBar?.showSettingsButton,
-            reloadBusy: props.statusBar?.reloadBusy,
-            reloadError: props.statusBar?.reloadError,
-            openWorkConnectState: props.statusBar?.openWorkConnectState,
-            onSendFeedback: props.onSendFeedback,
-          }}
         />
         <SidebarInset className="min-h-0 overflow-hidden bg-sidebar mac:bg-transparent mac:[&_header]:transition-[padding-left] mac:[&_header]:duration-200 mac:[&_header]:ease-linear mac:peer-data-[state=collapsed]:[&_header]:pl-34 mac:max-md:[&_header]:pl-34">
           <div className="flex min-h-0 flex-1 max-lg:p-0 lg:py-2 lg:pl-2">
@@ -1168,19 +1126,6 @@ export function SessionPage(props: SessionPageProps) {
                 />
                 <TooltipContent>{sidePanelOpen ? "Close side panel" : "Open side panel"}</TooltipContent>
               </Tooltip>
-              {showCloudSignIn ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="hidden lg:inline-flex"
-                  onClick={openCloudSignIn}
-                  title={t("den.signin_title")}
-                  aria-label={t("den.signin_title")}
-                >
-                  <Cloud className="size-3.5" />
-                  <span>{t("den.signin_button")}</span>
-                </Button>
-              ) : null}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
@@ -1211,12 +1156,6 @@ export function SessionPage(props: SessionPageProps) {
                     <DropdownMenuItem onClick={openVoiceRailPane}>
                       <Mic2 className="size-4" />
                       Voice Mode
-                    </DropdownMenuItem>
-                  ) : null}
-                  {showCloudSignIn ? (
-                    <DropdownMenuItem onClick={openCloudSignIn}>
-                      <Cloud className="size-4" />
-                      {t("den.signin_button")}
                     </DropdownMenuItem>
                   ) : null}
                 </DropdownMenuContent>

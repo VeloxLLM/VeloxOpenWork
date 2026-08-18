@@ -22,12 +22,11 @@
     "check:electron": "node ./scripts/check-electron-bridge.mjs",
     "typecheck:electron": "pnpm --dir ../server exec tsc -p ../desktop/tsconfig.electron.json --noEmit",
     "prepare:sidecar": "node ./scripts/prepare-sidecar.mjs",
-    "test": "node --test electron/after-pack-paths.test.mjs electron/brand-app-name.test.mjs electron/brand-icon-darwin.test.mjs electron/brand-icon-windows.test.mjs electron/dev-profile.test.mjs electron/no-bare-external-fetch.test.mjs electron/secure-vault-key.test.mjs electron/stdio-errors.test.mjs"
+    "test": "node --test electron/after-pack-paths.test.mjs electron/brand-app-name.test.mjs electron/brand-icon-darwin.test.mjs electron/brand-icon-windows.test.mjs electron/dev-profile.test.mjs electron/no-bare-external-fetch.test.mjs electron/provider-gateway.test.mjs electron/secure-vault-key.test.mjs electron/stdio-errors.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@opencode-ai/sdk": "^1.18.15",
-    "@openwork/enterprise-mcp-client": "workspace:*",
     "@openwork/paths": "workspace:*",
     "@sentry/electron": "^7.16.0",
     "ajv": "^8.17.1",

@@ -2,7 +2,6 @@
 import { useEffect, useReducer, useRef, useState, type ReactNode, type SetStateAction } from "react";
 import {
   BookOpen,
-  ArrowUpRight,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
@@ -52,13 +51,11 @@ import {
 import { SettingsGroupHeader, RefreshButton } from "../settings-section";
 import { SettingsListSearchInput } from "../settings-list";
 import {
-  openDesktopUrl,
   openDesktopPath,
   readOpencodeConfig,
   revealDesktopItemInDir,
   type OpencodeConfigFile,
 } from "../../../../app/lib/desktop";
-import { readDenSettings } from "../../../../app/lib/den";
 import {
   getMcpIdentityKey,
   normalizeMcpSlug,
@@ -93,7 +90,6 @@ import {
   type ConfigScope,
   type McpViewLocalState,
 } from "./mcp-view-state";
-import { useCloudSession } from "../cloud/cloud-session-provider";
 import {
   libraryAddAction,
   libraryAddKindsForFilter,
@@ -116,12 +112,6 @@ import {
 } from "../library";
 import { AddLibraryItemModal } from "./add-library-item-modal";
 import { LibraryAddControl } from "./library-add-control";
-import {
-  denAddUrl,
-  openInDenLibraryUrl,
-  shouldShowOpenInDenAction,
-  type DenLibraryTarget,
-} from "../open-in-den";
 
 export type ReactMcpStatus =
   | "connected"
@@ -429,8 +419,6 @@ function resolveExtensionDetailTarget(
 }
 
 export function McpView(props: McpViewProps) {
-  const cloudSession = useCloudSession();
-  const denBaseUrl = readDenSettings().baseUrl;
   const skillCount = props.installedSkills?.length ?? 0;
   const useRoutedDetail = typeof props.onDetailIdChange === "function";
   const [detailTarget, setDetailTarget] = useState<ExtensionDetailTarget | null>(null);
@@ -520,40 +508,19 @@ export function McpView(props: McpViewProps) {
   const detailPluginFile = activeTarget?.kind === "plugin-file" ? activeTarget : null;
   const detailOrgMcpItem = activeTarget?.kind === "org-mcp" ? activeTarget.item : null;
   const detailPresentation = useRoutedDetail ? "page" : "dialog";
-  const openInDenAction = (target: DenLibraryTarget): ReactNode => {
-    if (!shouldShowOpenInDenAction(denBaseUrl, cloudSession.isSignedIn, target)) return null;
-    const url = openInDenLibraryUrl(denBaseUrl, target);
-    if (!url) return null;
-    return (
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-fit"
-        onClick={() => void openDesktopUrl(url)}
-      >
-        {t("extensions.open_in_den")}
-        <ArrowUpRight size={13} />
-      </Button>
-    );
-  };
+  const openInDenAction = (_target: { id: string; pluginId?: string }): ReactNode => null;
   const setInventoryFilter = (nextFilter: ExtensionInventoryFilter) => {
     setFilter(nextFilter);
     props.onFilterChange?.(nextFilter);
   };
-  const libraryAddOptions = {
-    cloudSignedIn: cloudSession.isSignedIn,
-  };
+  const libraryAddOptions = { cloudSignedIn: false };
   const libraryAddKinds = libraryAddKindsForFilter(filter).filter((kind) => (
     libraryAddAction(kind, libraryAddOptions) !== null
   ));
   const handleAddKind = (kind: LibraryAddKind) => {
     const action = libraryAddAction(kind, libraryAddOptions);
     if (!action) return;
-    if (action.type === "den-url") {
-      const url = denAddUrl(denBaseUrl, action.kind);
-      if (url) void openDesktopUrl(url);
-      return;
-    }
+    if (action.type === "den-url") return;
     setAddAuthorableKind(action.kind);
   };
   const handleCreateLibraryItem = async (input: CreateLibraryItemInput) => {
@@ -806,8 +773,6 @@ export function McpView(props: McpViewProps) {
       );
     });
 
-  // Auto-configured built-ins like openwork-cloud remain active but hidden from
-  // Your apps until Show hidden reveals the row for disable/remove.
   const visibleMcpServers = inventoryState === "all" && (filter === "all" || filter === "mcp")
     ? showHidden
       ? props.mcpServers
@@ -1561,7 +1526,7 @@ export function McpView(props: McpViewProps) {
         open={addAuthorableKind !== null}
         kind={addAuthorableKind}
         busy={props.busy}
-        cloud={cloudSession.isSignedIn}
+        cloud={false}
         onClose={() => setAddAuthorableKind(null)}
         onCreate={handleCreateLibraryItem}
       />

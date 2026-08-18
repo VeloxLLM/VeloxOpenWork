@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 
 import { readMcpResourceText, type McpFetch } from "./connect-mcp-transport.js";
-import { readActivatedEnterpriseDenOrigin } from "./enterprise-den-origin.js";
 import { runtimeMcpMap, writeRuntimeOpencodeConfig } from "./runtime-opencode-config-store.js";
 import { externalFetch } from "./server-fetch.js";
 import type { ServerConfig, WorkspaceInfo } from "./types.js";
@@ -108,8 +107,7 @@ async function trustedAppHostCloudEndpoint(cloudMcp: Record<string, unknown>): P
   if (endpoint.username || endpoint.password || endpoint.search || endpoint.hash) return false;
   if (BUILTIN_APP_HOST_CLOUD_ORIGINS.has(endpoint.origin)) return true;
   if (process.env.OPENWORK_DEV_MODE === "1" && isLoopbackHostname(endpoint.hostname)) return true;
-  const activatedEnterpriseOrigin = await readActivatedEnterpriseDenOrigin();
-  return activatedEnterpriseOrigin !== null && endpoint.origin === activatedEnterpriseOrigin;
+  return false;
 }
 
 /** Stable private App-host identifier. This must never become an OpenCode MCP key. */

@@ -166,11 +166,9 @@ test("persists accepted Enterprise activation and branding before applying its i
       calls.push({ type: "apply", iconUrl });
       return { ok: true };
     },
-    enterpriseActivation,
   });
 
   assert.deepEqual(calls.map((call) => call.type), ["persist", "apply"]);
-  assert.deepEqual(calls[0].config.enterpriseActivation, enterpriseActivation);
   assert.equal(calls[0].config.brandAppName, "Acme Work");
   assert.equal(calls[0].config.brandIconUrl, "https://assets.acme.example.com/icon.png");
   assert.equal(calls[1].iconUrl, expectedClaims.brand.iconUrl);

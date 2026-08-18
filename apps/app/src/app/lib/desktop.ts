@@ -20,13 +20,7 @@ export type {
   ExecResult,
   LocalSkillCard,
   LocalSkillContent,
-  NukeManifestPreview,
-  NukeOptions,
-  NukeReceipt,
-  NukeReceiptError,
   OpencodeConfigFile,
-  UpdaterEnvironment,
-  CacheResetResult,
 } from "./desktop-types";
 
 import type {
@@ -39,9 +33,6 @@ import type {
   DesktopCommandName,
   DesktopCommandResult,
   EvalRelaunchResult,
-  NukeManifestPreview,
-  NukeOptions,
-  NukeReceipt,
   WorkspaceList,
 } from "./desktop-types";
 import type { BrowserPanelTab } from "./desktop-types";
@@ -55,29 +46,12 @@ export type BrowserProxyState = {
   proxy: { rules: string; authenticated: boolean } | null;
 };
 
-export type RecoveryRelease = {
-  id: string;
-  version: string;
-  marking: "current" | "previous" | null;
-};
-
-export type RecoveryActionResult = {
-  ok: boolean;
-  action?: "install" | "installer" | "eval";
-  message?: string;
-  reason?: string;
-};
-
 // ---------------------------------------------------------------------------
 // Electron bridge surface
 // ---------------------------------------------------------------------------
 
 declare global {
   interface Window {
-    __openworkRecoveryControl?: {
-      snapshot: () => Promise<unknown>;
-      select: (id: string) => Promise<unknown>;
-    };
     __OPENWORK_ELECTRON__?: {
       invokeDesktop?: <C extends DesktopCommandName>(
         command: C,
@@ -88,17 +62,6 @@ declare global {
         relaunch?: () => Promise<void>;
       };
       system?: {
-        getArchitectureInfo?: () => Promise<{
-          appArch: string;
-          appArchLabel: string;
-          systemArch: string;
-          systemArchLabel: string;
-          mismatch: boolean;
-          platform: "darwin" | "linux" | "windows";
-          version: string;
-          downloadUrl: string;
-          releaseUrl: string;
-        }>;
         getMicrophoneStatus?: () => Promise<{
           platform: string;
           status: string;
@@ -121,44 +84,6 @@ declare global {
       };
       dev?: {
         evalRelaunch?: () => Promise<EvalRelaunchResult>;
-      };
-      nuke?: {
-        preview?: (options?: NukeOptions) => Promise<NukeManifestPreview>;
-        execute?: (options?: NukeOptions) => Promise<NukeReceipt>;
-      };
-      updater?: {
-        getChannel?: () => Promise<{
-          channel: "stable" | "alpha";
-          feedUrl: string;
-          currentVersion: string;
-        }>;
-        setChannel?: (channel: "stable" | "alpha") => Promise<{
-          channel: "stable" | "alpha";
-          feedUrl: string;
-          currentVersion: string;
-        }>;
-        check?: (channel?: "stable" | "alpha", targetVersion?: string) => Promise<{
-          available: boolean;
-          currentVersion?: string;
-          latestVersion?: string | null;
-          releaseDate?: string | null;
-          releaseNotes?: unknown;
-          channel?: "stable" | "alpha";
-          feedUrl?: string;
-          reason?: string;
-        }>;
-        download?: () => Promise<{ ok: boolean; reason?: string }>;
-        installAndRestart?: () => Promise<{ ok: boolean; reason?: string }>;
-      };
-      recovery?: {
-        recordHealthy?: () => Promise<unknown>;
-        list?: (policy: {
-          versions: string[];
-          minimumVersion: string;
-          allowedVersions?: string[];
-        }) => Promise<{ ok: boolean; releases: RecoveryRelease[]; reason?: string }>;
-        restorePrevious?: () => Promise<RecoveryActionResult>;
-        use?: (id: string) => Promise<RecoveryActionResult>;
       };
       browser?: {
         show?: (bounds: { x: number; y: number; width: number; height: number }) => Promise<void>;
@@ -542,8 +467,6 @@ const {
   workspaceSetSelected,
   workspaceSetRuntimeActive,
   workspaceCreate,
-  workspaceCreateRemote,
-  workspaceUpdateRemote,
   workspaceUpdateDisplayName,
   workspaceForget,
   workspaceAddAuthorizedRoot,
@@ -563,8 +486,6 @@ const {
   setDesktopBootstrapConfig,
   connectLinkVerify,
   connectLinkAccept,
-  nukeOpenworkAndOpencodeConfigPreview,
-  nukeOpenworkAndOpencodeConfigAndExit,
   sandboxCleanupOpenworkContainers,
   openworkServerInfo,
   openworkServerRestart,
@@ -582,19 +503,13 @@ const {
   readLocalSkill,
   writeLocalSkill,
   uninstallSkill,
-  updaterEnvironment,
   readOpencodeConfig,
   writeOpencodeConfig,
-  providerSecretGet,
-  providerSecretSet,
-  providerSecretDelete,
-  providerProxyGet,
-  providerProxySet,
-  providerProxyDelete,
+  providerCredentialsGet,
+  providerCredentialsSet,
+  providerCredentialsDelete,
   providerGatewayUrl,
   providerGatewayTest,
-  resetOpenworkState,
-  resetOpencodeCache,
   opencodeMcpAuth,
   setWindowDecorations,
 } = desktopBridge;
@@ -605,8 +520,6 @@ export {
   workspaceSetSelected,
   workspaceSetRuntimeActive,
   workspaceCreate,
-  workspaceCreateRemote,
-  workspaceUpdateRemote,
   workspaceUpdateDisplayName,
   workspaceForget,
   workspaceAddAuthorizedRoot,
@@ -626,8 +539,6 @@ export {
   setDesktopBootstrapConfig,
   connectLinkVerify,
   connectLinkAccept,
-  nukeOpenworkAndOpencodeConfigPreview,
-  nukeOpenworkAndOpencodeConfigAndExit,
   sandboxCleanupOpenworkContainers,
   openworkServerInfo,
   openworkServerRestart,
@@ -645,19 +556,13 @@ export {
   readLocalSkill,
   writeLocalSkill,
   uninstallSkill,
-  updaterEnvironment,
   readOpencodeConfig,
   writeOpencodeConfig,
-  providerSecretGet,
-  providerSecretSet,
-  providerSecretDelete,
-  providerProxyGet,
-  providerProxySet,
-  providerProxyDelete,
+  providerCredentialsGet,
+  providerCredentialsSet,
+  providerCredentialsDelete,
   providerGatewayUrl,
   providerGatewayTest,
-  resetOpenworkState,
-  resetOpencodeCache,
   opencodeMcpAuth,
   setWindowDecorations,
 };

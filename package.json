@@ -3,14 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "OPENWORK_DEV_MODE=1 pnpm --filter @openwork/desktop dev",
-    "dev:ui": "OPENWORK_DEV_MODE=1 pnpm --filter @openwork/app dev",
-    "dev:electron": "OPENWORK_DEV_MODE=1 pnpm --filter @openwork/desktop dev:electron",
+    "dev": "pnpm --filter @openwork/desktop dev",
+    "dev:ui": "pnpm --filter @openwork/app dev",
+    "dev:electron": "pnpm --filter @openwork/desktop dev:electron",
     "build": "pnpm --filter @openwork/app build && pnpm --filter @openwork/desktop build",
     "build:ui": "pnpm --filter @openwork/app build",
     "typecheck": "pnpm --filter @openwork/app typecheck && pnpm --filter @openwork/desktop typecheck:electron",
-    "test": "pnpm --filter @openwork/desktop test",
-    "test:app": "pnpm --filter @openwork/app test:health",
+    "test": "pnpm test:app && pnpm --filter @openwork/desktop test && pnpm --filter @veloxopenwork/local-mcp-client test",
+    "test:app": "pnpm --filter @openwork/app test",
     "package:electron": "pnpm --filter @openwork/desktop package:electron"
   },
   "devDependencies": {

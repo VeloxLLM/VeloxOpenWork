@@ -11,8 +11,7 @@ import {
 } from "react";
 
 import { THINKING_PREF_KEY } from "../../app/constants";
-import { coerceReleaseChannel } from "../../app/lib/release-channels";
-import type { ModelRef, ReleaseChannel, SettingsTab, View } from "../../app/types";
+import type { ModelRef, SettingsTab, View } from "../../app/types";
 import {
   DEFAULT_DESKTOP_NOTIFICATION_PREFERENCE,
   isDesktopNotificationPreference,
@@ -40,12 +39,6 @@ export type LocalPreferences = {
    * fall back to the default agent (#2101).
    */
   selectedAgent: string | null;
-  /**
-   * Release channel the desktop app is subscribed to. Defaults to
-   * "stable". Alpha is only honored on macOS; the updater helper falls
-   * back to stable elsewhere.
-   */
-  releaseChannel: ReleaseChannel;
   featureFlags: {
     microsandboxCreateSandbox: boolean;
     /** Keep active tasks on a draining engine while a fresh engine takes new work. */
@@ -57,12 +50,6 @@ export type LocalPreferences = {
      */
     memory: boolean;
   };
-  /**
-   * Set to true after the user completes the welcome/onboarding flow
-   * (creates or connects their first workspace). When false and the
-   * workspace list is empty, the app redirects to /welcome.
-   */
-  hasCompletedOnboarding: boolean;
   /**
    * Anonymous product analytics (PostHog). On by default with a visible
    * opt-out in Settings -> Preferences. Never includes message content.
@@ -94,9 +81,7 @@ const INITIAL_PREFS: LocalPreferences = {
   modelVariant: null,
   defaultModel: null,
   selectedAgent: null,
-  releaseChannel: "stable",
   featureFlags: { microsandboxCreateSandbox: true, continuousEngine: false, memory: false },
-  hasCompletedOnboarding: false,
   analyticsEnabled: true,
   desktopNotifications: DEFAULT_DESKTOP_NOTIFICATION_PREFERENCE,
 };

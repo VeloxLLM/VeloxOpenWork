@@ -34,11 +34,6 @@ import { applyBrandAppName } from "./brand-app-name.mjs";
 import { createBrowserPanel } from "./browser-panel.mjs";
 import { createWorkspaceStore } from "./workspace-store.mjs";
 import {
-  buildNukeManifest,
-  executeNukeFreshStart,
-  runPendingNukeCleanup,
-} from "./nuke.mjs";
-import {
   createConnectLinkReplayGuard,
   extractConnectExchange,
   resolveConnectExchangeUrl,
@@ -57,8 +52,6 @@ import {
 } from "./linux-desktop-integration.mjs";
 import { createDesktopAutomationRunner, normalizeRunnerBaseUrl } from "./automation-runner.mjs";
 import {
-  desktopActivationRequired,
-  enterprisePreactivationCommandAllowed,
   resolveDesktopDistribution,
 } from "./desktop-distribution.mjs";
 import {
@@ -146,8 +139,6 @@ if (BLANK_SLATE_LAUNCH.enabled || process.env.OPENWORK_ELECTRON_USE_MOCK_KEYCHAI
   app.commandLine.appendSwitch("use-mock-keychain");
 }
 const DOCS_PAGE_URL = "https://ai.drx.ac.cn/aimd";
-const RELEASE_DOWNLOAD_BASE_URL = "https://github.com/VeloxLLM/VeloxOpenWork/releases/latest/download";
-const RELEASE_PAGE_URL = "https://github.com/VeloxLLM/VeloxOpenWork/releases/latest";
 const applicationMenu = createApplicationMenu({
   appName: APP_NAME,
   docsUrl: DOCS_PAGE_URL,
@@ -249,140 +240,6 @@ function resolveAppIconPath() {
     if (candidate && existsSync(candidate)) return candidate;
   }
   return null;
-}
-
-function normalizeRuntimeArch(value) {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (["arm64", "aarch64", "arm64e"].includes(normalized)) return "arm64";
-  if (["x64", "x86_64", "amd64"].includes(normalized)) return "x64";
-  return normalized || "unknown";
-}
-
-function isMacRunningUnderRosetta() {
-  if (process.platform !== "darwin" || process.arch !== "x64") return false;
-  try {
-    return execFileSync("/usr/sbin/sysctl", ["-in", "sysctl.proc_translated"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim() === "1";
-  } catch {
-    return false;
-  }
-}
-
-function resolveSystemArch() {
-  if (process.platform === "darwin" && isMacRunningUnderRosetta()) return "arm64";
-  if (process.platform === "win32") {
-    return normalizeRuntimeArch(
-      process.env.PROCESSOR_ARCHITEW6432 || process.env.PROCESSOR_ARCHITECTURE || os.arch(),
-    );
-  }
-  if (typeof os.machine === "function") return normalizeRuntimeArch(os.machine());
-  return normalizeRuntimeArch(os.arch());
-}
-
-function platformDownloadSlug() {
-  if (process.platform === "darwin") return "mac";
-  if (process.platform === "win32") return "win";
-  return "linux";
-}
-
-function downloadAssetArch(arch) {
-  if (process.platform === "linux" && arch === "x64") return "x86_64";
-  return arch;
-}
-
-function downloadAssetExtension() {
-  if (process.platform === "darwin") return "dmg";
-  if (process.platform === "win32") return "exe";
-  return "AppImage";
-}
-
-function updaterManifestName(arch) {
-  if (process.platform === "darwin") return "latest-mac.yml";
-  if (process.platform === "win32") return "latest.yml";
-  return arch === "arm64" ? "latest-linux-arm64.yml" : "latest-linux.yml";
-}
-
-function archLabel(arch) {
-  if (arch === "arm64") return "ARM";
-  if (arch === "x64") return "Intel";
-  return arch;
-}
-
-function parseUpdaterManifestFiles(raw) {
-  const files = [];
-  let current = null;
-  for (const line of String(raw || "").split(/\r?\n/)) {
-    const start = line.match(/^\s*-\s+url:\s*(.+?)\s*$/);
-    if (start) {
-      current = { url: start[1].trim().replace(/^['"]|['"]$/g, "") };
-      files.push(current);
-      continue;
-    }
-    const prop = line.match(/^\s{4}([A-Za-z][A-Za-z0-9_-]*):\s*(.+?)\s*$/);
-    if (prop && current) {
-      current[prop[1]] = prop[2].trim().replace(/^['"]|['"]$/g, "");
-    }
-  }
-  return files.filter((file) => file.url);
-}
-
-function selectDownloadFile(files, arch) {
-  const assetArch = downloadAssetArch(arch);
-  const expected = `-${assetArch}-`;
-  const extension = downloadAssetExtension();
-  const matchingArch = files.filter((file) => file.url.includes(expected));
-  return (
-    matchingArch.find((file) => file.url.endsWith(`.${extension}`)) ||
-    matchingArch.find((file) => file.url.endsWith(".zip")) ||
-    matchingArch[0] ||
-    null
-  );
-}
-
-async function resolveCorrectArchitectureDownloadUrl(arch) {
-  const manifestUrl = `${RELEASE_DOWNLOAD_BASE_URL}/${updaterManifestName(arch)}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000);
-  try {
-    const response = await electronNet.fetch(manifestUrl, {
-      signal: controller.signal,
-      headers: { Accept: "text/yaml, text/plain, */*" },
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const selected = selectDownloadFile(parseUpdaterManifestFiles(await response.text()), arch);
-    if (!selected?.url) return null;
-    return /^https?:\/\//i.test(selected.url)
-      ? selected.url
-      : new URL(selected.url, `${RELEASE_DOWNLOAD_BASE_URL}/`).toString();
-  } catch (error) {
-    console.warn("[architecture] failed to resolve latest download URL", error);
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function resolveArchitectureInfo() {
-  const appArch = normalizeRuntimeArch(process.arch);
-  const systemArch = resolveSystemArch();
-  const version = app.getVersion();
-  const targetArch = systemArch === "arm64" || systemArch === "x64" ? systemArch : appArch;
-  const assetName = `openwork-${platformDownloadSlug()}-${downloadAssetArch(targetArch)}-${version}.${downloadAssetExtension()}`;
-  const latestDownloadUrl = await resolveCorrectArchitectureDownloadUrl(targetArch);
-  const hasCorrectArchitectureDownload = Boolean(latestDownloadUrl);
-  return {
-    appArch,
-    appArchLabel: archLabel(appArch),
-    systemArch,
-    systemArchLabel: archLabel(systemArch),
-    mismatch: appArch !== systemArch && hasCorrectArchitectureDownload,
-    platform: process.platform === "win32" ? "windows" : process.platform,
-    version,
-    downloadUrl: latestDownloadUrl || `${RELEASE_DOWNLOAD_BASE_URL}/${assetName}`,
-    releaseUrl: RELEASE_PAGE_URL,
-  };
 }
 
 const APP_ICON_PATH = resolveAppIconPath();
@@ -1099,27 +956,11 @@ async function acceptConnectLink(rawUrl) {
 }
 
 async function persistConnectLinkClaims(claims) {
-  const previous = workspaceStore.readDesktopBootstrapConfigSync();
   const config = await persistConnectLinkBranding(claims, {
     persistBootstrap: (config) => workspaceStore.setDesktopBootstrapConfig(config),
     applyBrandIconUrl: (iconUrl) => applyBrandIconUrl(iconUrl).catch((error) =>
       brandIconFailure("connect-apply-failed", error)),
-    enterpriseActivation: DESKTOP_DISTRIBUTION.flavor === "enterprise"
-      ? {
-          activatedAt: new Date().toISOString(),
-          denBaseUrl: claims.den.baseUrl,
-        }
-      : null,
   });
-  if (
-    desktopActivationRequired(DESKTOP_DISTRIBUTION, previous)
-    && !desktopActivationRequired(DESKTOP_DISTRIBUTION, config)
-  ) {
-    await uiControlServer.start().catch((error) => {
-      console.warn("[ui-control] failed to start", error);
-    });
-    await runtimeManager.prepareFreshRuntime();
-  }
   return config;
 }
 
@@ -1442,6 +1283,11 @@ function providerSecretEnvironmentKey(providerId) {
   return `VELOXOPENWORK_PROVIDER_${safeId}_API_KEY`;
 }
 
+function providerProxyEnvironmentKey(providerId) {
+  const safeId = String(providerId ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+  return `VELOXOPENWORK_PROVIDER_${safeId}_PROXY`;
+}
+
 async function readSecureSecretMap(filePath) {
   if (!(await pathExists(filePath))) return {};
   try {
@@ -1476,45 +1322,11 @@ async function writeProviderSecrets(secrets) {
 async function getProviderProxy(providerId) {
   const secrets = await readSecureSecretMap(providerProxySecretsPath());
   const value = secrets[providerId];
-  return typeof value === "string" && value.trim() ? value : null;
-}
-
-async function setProviderProxy(providerId, value) {
-  const secrets = await readSecureSecretMap(providerProxySecretsPath());
-  if (value.trim()) secrets[providerId] = value.trim();
-  else delete secrets[providerId];
-  await writeSecureSecretMap(providerProxySecretsPath(), secrets);
-  return execResult(true, "Provider proxy saved securely");
-}
-
-async function deleteProviderProxy(providerId) {
-  const secrets = await readSecureSecretMap(providerProxySecretsPath());
-  delete secrets[providerId];
-  await writeSecureSecretMap(providerProxySecretsPath(), secrets);
-  return execResult(true, "Provider proxy removed");
-}
-
-async function getProviderSecret(providerId) {
-  const secrets = await readProviderSecrets();
-  const value = secrets[providerId];
-  if (typeof value === "string" && value) process.env[providerSecretEnvironmentKey(providerId)] = value;
-  return typeof value === "string" ? value : null;
-}
-
-async function setProviderSecret(providerId, value) {
-  const secrets = await readProviderSecrets();
-  secrets[providerId] = value;
-  process.env[providerSecretEnvironmentKey(providerId)] = value;
-  await writeProviderSecrets(secrets);
-  return execResult(true, "Provider secret saved securely");
-}
-
-async function deleteProviderSecret(providerId) {
-  const secrets = await readProviderSecrets();
-  delete secrets[providerId];
-  delete process.env[providerSecretEnvironmentKey(providerId)];
-  await writeProviderSecrets(secrets);
-  return execResult(true, "Provider secret removed");
+  if (typeof value === "string" && value.trim()) {
+    process.env[providerProxyEnvironmentKey(providerId)] = value;
+    return value;
+  }
+  return null;
 }
 
 async function hydrateProviderSecretEnvironment() {
@@ -1524,6 +1336,93 @@ async function hydrateProviderSecretEnvironment() {
       process.env[providerSecretEnvironmentKey(providerId)] = value;
     }
   }
+  const proxies = await readSecureSecretMap(providerProxySecretsPath());
+  for (const [providerId, value] of Object.entries(proxies)) {
+    if (typeof value === "string" && value) {
+      process.env[providerProxyEnvironmentKey(providerId)] = value;
+    }
+  }
+}
+
+function validateHttpUrl(value, message) {
+  const url = new URL(String(value ?? "").trim());
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error(message);
+  return url;
+}
+
+async function getProviderCredentials(providerId) {
+  const [secrets, proxies] = await Promise.all([
+    readProviderSecrets(),
+    readSecureSecretMap(providerProxySecretsPath()),
+  ]);
+  const proxyValue = typeof proxies[providerId] === "string" ? proxies[providerId] : "";
+  let proxy = null;
+  if (proxyValue) {
+    const parsed = new URL(proxyValue);
+    const username = decodeURIComponent(parsed.username);
+    parsed.username = "";
+    parsed.password = "";
+    proxy = { url: parsed.toString(), username };
+  }
+  return { hasApiKey: typeof secrets[providerId] === "string" && Boolean(secrets[providerId]), proxy };
+}
+
+async function setProviderCredentials(input) {
+  const providerId = String(input?.providerId ?? "").trim();
+  if (!/^[a-z0-9][a-z0-9._-]*$/i.test(providerId)) throw new Error("Provider ID 无效");
+  const previousSecrets = await readProviderSecrets();
+  const previousProxies = await readSecureSecretMap(providerProxySecretsPath());
+  const nextSecrets = { ...previousSecrets };
+  const nextProxies = { ...previousProxies };
+  if (typeof input.apiKey === "string" && input.apiKey.trim()) {
+    nextSecrets[providerId] = input.apiKey.trim();
+  }
+  if (input.proxyEnabled) {
+    const proxy = validateHttpUrl(input.proxyUrl, "代理地址无效");
+    const previousProxy = typeof previousProxies[providerId] === "string"
+      ? new URL(previousProxies[providerId])
+      : null;
+    proxy.username = String(input.proxyUsername ?? "").trim();
+    if (typeof input.proxyPassword === "string" && input.proxyPassword) {
+      proxy.password = input.proxyPassword;
+    } else if (previousProxy?.password) {
+      proxy.password = previousProxy.password;
+    }
+    nextProxies[providerId] = proxy.toString();
+  } else {
+    delete nextProxies[providerId];
+  }
+  try {
+    await writeSecureSecretMap(providerProxySecretsPath(), nextProxies);
+    await writeProviderSecrets(nextSecrets);
+  } catch (error) {
+    await writeSecureSecretMap(providerProxySecretsPath(), previousProxies).catch(() => undefined);
+    await writeProviderSecrets(previousSecrets).catch(() => undefined);
+    throw error;
+  }
+  const apiKey = nextSecrets[providerId];
+  if (typeof apiKey === "string" && apiKey) process.env[providerSecretEnvironmentKey(providerId)] = apiKey;
+  else delete process.env[providerSecretEnvironmentKey(providerId)];
+  const proxyValue = nextProxies[providerId];
+  if (typeof proxyValue === "string" && proxyValue) process.env[providerProxyEnvironmentKey(providerId)] = proxyValue;
+  else delete process.env[providerProxyEnvironmentKey(providerId)];
+  return execResult(true, "Provider credentials saved securely");
+}
+
+async function deleteProviderCredentials(providerId) {
+  const [secrets, proxies] = await Promise.all([
+    readProviderSecrets(),
+    readSecureSecretMap(providerProxySecretsPath()),
+  ]);
+  delete secrets[providerId];
+  delete proxies[providerId];
+  await Promise.all([
+    writeProviderSecrets(secrets),
+    writeSecureSecretMap(providerProxySecretsPath(), proxies),
+  ]);
+  delete process.env[providerSecretEnvironmentKey(providerId)];
+  delete process.env[providerProxyEnvironmentKey(providerId)];
+  return execResult(true, "Provider credentials removed");
 }
 
 function resolveCommandsDir(scope, projectDir) {
@@ -1789,12 +1688,6 @@ const desktopCommandHandlers = {
   "workspaceCreate": async (event, ...args) => {
       return workspaceStore.createWorkspace(args[0] ?? {});
   },
-  "workspaceCreateRemote": async (event, ...args) => {
-      return workspaceStore.createRemoteWorkspace(args[0] ?? {});
-  },
-  "workspaceUpdateRemote": async (event, ...args) => {
-      return workspaceStore.updateRemoteWorkspace(args[0] ?? {});
-  },
   "workspaceUpdateDisplayName": async (event, ...args) => {
       return workspaceStore.updateWorkspaceDisplayName(args[0] ?? {});
   },
@@ -1950,27 +1843,7 @@ const desktopCommandHandlers = {
       return workspaceStore.clearDesktopBootstrapConfig();
   },
   "setDesktopBootstrapConfig": async (event, ...args) => {
-      const previous = workspaceStore.readDesktopBootstrapConfigSync();
-      // A locked installation must never be able to unlock itself by writing
-      // policy through the bridge. The activation requirement is cleared only
-      // by an administrator editing desktop-bootstrap.json on disk (which this
-      // process reads, never writes) or by a completed Den activation.
-      const requested = args[0] ?? {};
-      const guarded = desktopActivationRequired(DESKTOP_DISTRIBUTION, previous)
-          && requested?.requireActivation === false
-        ? { ...requested, requireActivation: true }
-        : requested;
-      const next = await workspaceStore.setDesktopBootstrapConfig(guarded);
-      if (
-        desktopActivationRequired(DESKTOP_DISTRIBUTION, previous)
-        && !desktopActivationRequired(DESKTOP_DISTRIBUTION, next)
-      ) {
-        await uiControlServer.start().catch((error) => {
-          console.warn("[ui-control] failed to start", error);
-        });
-        await runtimeManager.prepareFreshRuntime();
-      }
-      return next;
+      return workspaceStore.setDesktopBootstrapConfig(args[0] ?? {});
   },
   "connectLinkVerify": async (event, ...args) => {
       // Read-only check — parses + verifies the deep link, writes nothing.
@@ -2002,34 +1875,6 @@ const desktopCommandHandlers = {
       }
       const config = await persistConnectLinkClaims(verified.claims);
       return { ok: true, config };
-  },
-  "nukeOpenworkAndOpencodeConfigPreview": async (event, ...args) => {
-      return buildNukeManifest({
-        env: process.env,
-        homedir: os.homedir(),
-        platform: process.platform,
-        preserveBootstrap: args[0]?.preserveBootstrap !== false,
-        userDataPath: app.getPath("userData"),
-        workspacePaths: await workspaceStore.listLocalWorkspacePaths(),
-      });
-  },
-  "nukeOpenworkAndOpencodeConfigAndExit": async (event, ...args) => {
-      return executeNukeFreshStart({
-        app,
-        session,
-        runtimeManager,
-        uiControlServer,
-        removeWindowsBrandShortcut,
-      }, {
-        preserveBootstrap: args[0]?.preserveBootstrap !== false,
-        input: {
-          env: process.env,
-          homedir: os.homedir(),
-          platform: process.platform,
-          userDataPath: app.getPath("userData"),
-          workspacePaths: await workspaceStore.listLocalWorkspacePaths(),
-        },
-      });
   },
   "sandboxCleanupOpenworkContainers": async (event, ...args) => {
       return runtimeManager.sandboxCleanupOpenworkContainers();
@@ -2146,18 +1991,6 @@ const desktopCommandHandlers = {
       await rm(path.dirname(skillPath), { recursive: true, force: true });
       return execResult(true, `Removed skill ${args[1]}`);
   },
-  "updaterEnvironment": async (event, ...args) => {
-      const executablePath = app.isPackaged ? app.getPath("exe") : process.execPath;
-      return {
-        supported: true,
-        reason: null,
-        executablePath,
-        appBundlePath:
-          process.platform === "darwin"
-            ? path.resolve(executablePath, "../../..")
-            : path.dirname(executablePath),
-      };
-  },
   "readOpencodeConfig": async (event, ...args) => {
       return readOpencodeConfig(String(args[0] ?? "").trim(), String(args[1] ?? "").trim());
   },
@@ -2168,28 +2001,32 @@ const desktopCommandHandlers = {
         String(args[2] ?? ""),
       );
   },
-  "providerSecretGet": async (event, ...args) => getProviderSecret(String(args[0] ?? "").trim()),
-  "providerSecretSet": async (event, ...args) =>
-    setProviderSecret(String(args[0] ?? "").trim(), String(args[1] ?? "")),
-  "providerSecretDelete": async (event, ...args) => deleteProviderSecret(String(args[0] ?? "").trim()),
-  "providerProxyGet": async (event, ...args) => getProviderProxy(String(args[0] ?? "").trim()),
-  "providerProxySet": async (event, ...args) =>
-    setProviderProxy(String(args[0] ?? "").trim(), String(args[1] ?? "")),
-  "providerProxyDelete": async (event, ...args) => deleteProviderProxy(String(args[0] ?? "").trim()),
-  "providerGatewayUrl": async () => providerGateway.start(),
-  "providerGatewayTest": async (event, ...args) => {
+  "providerCredentialsGet": async (event, ...args) =>
+    getProviderCredentials(String(args[0] ?? "").trim()),
+  "providerCredentialsSet": async (event, ...args) =>
+    setProviderCredentials(args[0] && typeof args[0] === "object" ? args[0] : {}),
+  "providerCredentialsDelete": async (event, ...args) =>
+    deleteProviderCredentials(String(args[0] ?? "").trim()),
+  "providerGatewayUrl": async (event, ...args) => {
     const input = args[0] && typeof args[0] === "object" ? args[0] : {};
-    return providerGateway.test({
+    return providerGateway.register({
       providerId: String(input.providerId ?? "").trim(),
       baseUrl: String(input.baseUrl ?? "").trim(),
-      proxyUrl: typeof input.proxyUrl === "string" ? input.proxyUrl : null,
     });
   },
-  "resetOpenworkState": async (event, ...args) => {
-      return workspaceStore.resetOpenworkState();
-  },
-  "resetOpencodeCache": async (event, ...args) => {
-      return { removed: [], missing: [], errors: [] };
+  "providerGatewayTest": async (event, ...args) => {
+    const input = args[0] && typeof args[0] === "object" ? args[0] : {};
+    const providerId = String(input.providerId ?? "").trim();
+    const proxyUrl = typeof input.proxyUrl === "string"
+      ? input.proxyUrl
+      : input.proxyUrl === null
+        ? null
+        : await getProviderProxy(providerId);
+    return providerGateway.test({
+      providerId,
+      baseUrl: String(input.baseUrl ?? "").trim(),
+      proxyUrl,
+    });
   },
   "opencodeMcpAuth": async (event, ...args) => {
       return runtimeManager.opencodeMcpAuth(String(args[0] ?? "").trim(), String(args[1] ?? "").trim());
@@ -2236,7 +2073,7 @@ const desktopCommandHandlers = {
   },
   "__applyBrandAppName": async (event, ...args) => {
     currentDisplayAppName = applyBrandAppName(
-      BLANK_SLATE_LAUNCH.enabled || DESKTOP_DISTRIBUTION.flavor === "enterprise" ? null : args[0],
+      BLANK_SLATE_LAUNCH.enabled ? null : args[0],
       {
       fallbackName: APP_NAME,
       platform: process.platform,
@@ -2467,19 +2304,7 @@ function desktopErrorMessageWithCauses(error) {
   }
 }
 
-function assertDesktopActivation() {
-  if (desktopActivationRequired(
-    DESKTOP_DISTRIBUTION,
-    workspaceStore.readDesktopBootstrapConfigSync(),
-  )) {
-    throw new Error("This local command is not available in VeloxOpenWork.");
-  }
-}
-
 async function handleDesktopInvoke(event, command, ...args) {
-  if (!enterprisePreactivationCommandAllowed(command)) {
-    assertDesktopActivation();
-  }
   const handler = desktopCommandHandlers[command];
   if (!handler) {
     throw new Error(`Electron desktop bridge method is not implemented yet: ${command}`);
@@ -2641,7 +2466,6 @@ ipcMain.handle("openwork:shell:relaunch", async () => {
   app.relaunch();
   app.quit();
 });
-ipcMain.handle("openwork:system:architecture", async () => resolveArchitectureInfo());
 ipcMain.handle("openwork:system:microphoneStatus", async () => {
   if (process.platform !== "darwin") return { platform: process.platform, status: "not-mac" };
   return { platform: process.platform, status: systemPreferences.getMediaAccessStatus("microphone") };
@@ -2656,7 +2480,6 @@ ipcMain.handle("openwork:system:askMicrophoneAccess", async () => {
 
 // ── Terminal IPC ────────────────────────────────────────────────────────
 ipcMain.handle("openwork:terminal:create", async (event, options = {}) => {
-  assertDesktopActivation();
   const cwd = await resolveTerminalCwd(options?.cwd);
   const cols = Number.isFinite(options?.cols) ? Math.max(20, Math.floor(options.cols)) : 80;
   const rows = Number.isFinite(options?.rows) ? Math.max(5, Math.floor(options.rows)) : 24;
@@ -2764,19 +2587,9 @@ or use: pnpm dev:worktree`);
     const systemCaCertificates = await runtimeManager.systemCaCertificates();
     session.defaultSession.setCertificateVerifyProc(createSystemCaCertificateVerifyProc(systemCaCertificates));
     installMediaPermissionHandlers(session, () => mainWindow);
-    await runPendingNukeCleanup({
-      env: process.env,
-      homedir: os.homedir(),
-      platform: process.platform,
-      userDataPath: app.getPath("userData"),
-    }).catch((error) => {
-      console.warn("[nuke] pending cleanup failed", error);
-    });
     const bootstrapConfig = await workspaceStore.getDesktopBootstrapConfig();
     currentDisplayAppName = applyBrandAppName(
-      BLANK_SLATE_LAUNCH.enabled || DESKTOP_DISTRIBUTION.flavor === "enterprise"
-        ? null
-        : bootstrapConfig.brandAppName,
+      BLANK_SLATE_LAUNCH.enabled ? null : bootstrapConfig.brandAppName,
       {
       fallbackName: APP_NAME,
       platform: process.platform,
@@ -2793,28 +2606,19 @@ or use: pnpm dev:worktree`);
       await applyDesktopBootstrapBrandIcon(bootstrapConfig, applyBrandIconUrl);
     }
     applicationMenu.install();
-    if (!desktopActivationRequired(DESKTOP_DISTRIBUTION, bootstrapConfig)) {
-      await runtimeManager.prepareFreshRuntime().catch(() => undefined);
-    }
+    await runtimeManager.prepareFreshRuntime().catch(() => undefined);
 
     // Use Tauri's existing workspace state file as canonical so rollback and
     // Electron see the same workspace list. Import the short-lived
     // Electron-only filename only when the shared file is missing.
     await workspaceStore.migrateLegacyElectronWorkspaceStateIfNeeded();
-    // The UI-control bridge evaluates arbitrary JavaScript in the renderer, so
-    // it stays down until the installation is activated. Otherwise it is a
-    // local bypass of the pre-activation restriction.
-    if (!desktopActivationRequired(DESKTOP_DISTRIBUTION, bootstrapConfig)) {
-      await uiControlServer.start().catch((error) => {
-        console.warn("[ui-control] failed to start", error);
-      });
-    }
-    if (!desktopActivationRequired(DESKTOP_DISTRIBUTION, bootstrapConfig)) {
-      runtimeBootstrapPromise = bootRuntimeForSelectedWorkspace().catch((error) => ({
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      }));
-    }
+    await uiControlServer.start().catch((error) => {
+      console.warn("[ui-control] failed to start", error);
+    });
+    runtimeBootstrapPromise = bootRuntimeForSelectedWorkspace().catch((error) => ({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    }));
 
     queueDeepLinks(forwardedDeepLinks(process.argv));
     const win = await createMainWindow();

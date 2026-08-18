@@ -673,13 +673,12 @@ function isPlainObject(value) {
 }
 
 /**
- * Reduces an administrator-provisioned Den control-plane URL to its exact
- * origin. Keep this in sync with apps/server/src/enterprise-den-origin.ts.
+ * Reduces a configured HTTPS chain-repair URL to its exact origin.
  *
  * @param {unknown} rawValue
  * @returns {string | null}
  */
-function exactEnterpriseOrigin(rawValue) {
+function exactHttpsOrigin(rawValue) {
   if (typeof rawValue !== "string") return null;
   const raw = rawValue.trim();
   if (!raw || raw.length > 2 * 1024) return null;
@@ -694,28 +693,6 @@ function exactEnterpriseOrigin(rawValue) {
 }
 
 /**
- * @param {string} filePath
- * @returns {Promise<string | null>}
- */
-async function readActivatedEnterpriseOrigin(filePath) {
-  if (typeof filePath !== "string" || !filePath.trim()) return null;
-  try {
-    const fileStat = await stat(filePath);
-    if (!fileStat.isFile() || fileStat.size > MAX_BOOTSTRAP_BYTES) return null;
-    const raw = await readFile(filePath, "utf8");
-    if (Buffer.byteLength(raw, "utf8") > MAX_BOOTSTRAP_BYTES) return null;
-    const data = JSON.parse(raw);
-    if (!isPlainObject(data)) return null;
-    const activation = isPlainObject(data.enterpriseActivation) ? data.enterpriseActivation : null;
-    if (!activation) return null;
-    if (typeof activation.activatedAt !== "string" || !activation.activatedAt.trim()) return null;
-    return exactEnterpriseOrigin(activation.denBaseUrl);
-  } catch {
-    return null;
-  }
-}
-
-/**
  * @param {Iterable<string>} values
  * @returns {string[]}
  */
@@ -723,7 +700,7 @@ function normalizeRepairOrigins(values) {
   const seen = new Set();
   const origins = [];
   for (const value of values) {
-    const origin = exactEnterpriseOrigin(value);
+    const origin = exactHttpsOrigin(value);
     if (!origin || seen.has(origin)) continue;
     origins.push(origin);
     seen.add(origin);
@@ -1065,9 +1042,7 @@ async function resolveChainRepairOrigins(options) {
   if (chainRepair.origins) return normalizeRepairOrigins(chainRepair.origins);
   const envOrigins = typeof env.OPENWORK_CHAIN_REPAIR_ORIGINS === "string" ? env.OPENWORK_CHAIN_REPAIR_ORIGINS : "";
   if (envOrigins.trim()) return normalizeRepairOrigins(envOrigins.split(","));
-  const bootstrapPath = chainRepair.bootstrapPath ?? desktopBootstrapPath({ env });
-  const origin = await readActivatedEnterpriseOrigin(bootstrapPath);
-  return origin ? [origin] : [];
+  return [];
 }
 
 /**
@@ -1086,7 +1061,7 @@ async function repairIncompleteChains(options) {
   const origins = await resolveChainRepairOrigins(options);
   if (origins.length === 0) {
     if (!chainRepair.origins && !String(env.OPENWORK_CHAIN_REPAIR_ORIGINS ?? "").trim() && typeof logInfo === "function") {
-      logInfo("OpenWork runtime: chain repair skipped: no activation record.");
+      logInfo("VeloxOpenWork runtime: chain repair skipped: no configured origins.");
     }
     return { pems: [], timedOut: false };
   }

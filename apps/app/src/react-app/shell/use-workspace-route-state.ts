@@ -65,14 +65,12 @@ import {
   preserveWorkspaceRouteSession,
   removeWorkspaceRouteSession,
   sessionIdForLegacyWorkspaceInference,
-  automationsRoute,
   workspaceExtensionsRoute,
   workspaceSessionRoute,
 } from "./workspace-routes";
 
 export type UseWorkspaceRouteStateInput = {
   developerMode: boolean;
-  workspaceRoute?: "session" | "automations";
   /** Invoked when the openwork-server settings-changed event fires (the route bumps its settings version). */
   onServerSettingsChanged: () => void;
   /** Receives the local openwork-server host info discovered during refresh. */
@@ -108,7 +106,7 @@ function withRouteRefreshTimeout<T>(promise: Promise<T>, label: string): Promise
 }
 
 export function useWorkspaceRouteState(input: UseWorkspaceRouteStateInput) {
-  const { developerMode, onServerSettingsChanged, onHostInfo, workspaceRoute = "session" } = input;
+  const { developerMode, onServerSettingsChanged, onHostInfo } = input;
   const navigate = useNavigate();
   const location = useLocation();
   const local = useLocal();
@@ -136,13 +134,8 @@ export function useWorkspaceRouteState(input: UseWorkspaceRouteStateInput) {
       navigate(workspaceExtensionsRoute(workspaceId, extensionsRoutePath), options);
       return;
     }
-    if (workspaceRoute === "automations") {
-      if (/^\/automations(?:\/|$)/.test(location.pathname)) return;
-      navigate(automationsRoute(), options);
-      return;
-    }
     navigateToWorkspaceSession(workspaceId, sessionId, options);
-  }, [extensionsRouteActive, extensionsRoutePath, location.pathname, navigate, navigateToWorkspaceSession, workspaceRoute]);
+  }, [extensionsRouteActive, extensionsRoutePath, navigate, navigateToWorkspaceSession]);
 
   const {
     markRouteReady: markBootRouteReady,
@@ -414,7 +407,9 @@ export function useWorkspaceRouteState(input: UseWorkspaceRouteStateInput) {
       if (isDesktopRuntime()) {
         try {
           desktopList = await withRouteRefreshTimeout(workspaceBootstrap(), "Desktop workspace bootstrap") as WorkspaceList;
-          desktopWorkspaces = (desktopList.workspaces ?? []).map(mapDesktopWorkspace);
+          desktopWorkspaces = (desktopList.workspaces ?? [])
+            .map(mapDesktopWorkspace)
+            .filter((workspace) => workspace.workspaceType !== "remote");
         } catch (error) {
           const message = describeRouteError(error);
           console.error("[session-route] workspaceBootstrap failed", error);
@@ -514,7 +509,8 @@ export function useWorkspaceRouteState(input: UseWorkspaceRouteStateInput) {
         });
         setRouteError(message);
       }
-      const nextWorkspaces = workspaceListState.workspaces;
+      const nextWorkspaces = workspaceListState.workspaces
+        .filter((workspace) => workspace.workspaceType !== "remote");
 
       // Preserve any sessions we already have cached so switching routes
       // doesn't erase the sidebar while we refetch.

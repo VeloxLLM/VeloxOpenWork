@@ -22,17 +22,17 @@ import {
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
 import {
-  createEnterpriseMcpClient,
-  EnterpriseMcpClientError,
-  type EnterpriseMcpConnection,
-  type EnterpriseMcpDiagnosticEvent,
-  type EnterpriseMcpOAuthAuthorizationHandle,
-  type EnterpriseMcpOAuthClientRegistration,
-  type EnterpriseMcpOAuthCredential,
-  type EnterpriseMcpOAuthPersistence,
-  type EnterpriseMcpPersistenceContext,
-  type EnterpriseMcpRequestPhase,
-} from "@openwork/enterprise-mcp-client";
+  createRemoteMcpClient,
+  RemoteMcpClientError,
+  type RemoteMcpConnection,
+  type RemoteMcpDiagnosticEvent,
+  type RemoteMcpOAuthAuthorizationHandle,
+  type RemoteMcpOAuthClientRegistration,
+  type RemoteMcpOAuthCredential,
+  type RemoteMcpOAuthPersistence,
+  type RemoteMcpPersistenceContext,
+  type RemoteMcpRequestPhase,
+} from "@veloxopenwork/local-mcp-client";
 import { ApiError } from "./errors.js";
 import { sanitizeDiagnosticString } from "./diagnostic-sanitizer.js";
 import { backupTimestamp } from "./legacy-config-sweep.js";
@@ -76,8 +76,8 @@ type StoredLocalManagedMcpConnection = {
   lastError?: string;
   createdAt: number;
   updatedAt: number;
-  clientRegistration?: EnterpriseMcpOAuthClientRegistration;
-  credential?: EnterpriseMcpOAuthCredential;
+  clientRegistration?: RemoteMcpOAuthClientRegistration;
+  credential?: RemoteMcpOAuthCredential;
   authorizations: Record<string, StoredAuthorization>;
   discovery?: OAuthDiscoveryState;
 };
@@ -162,7 +162,7 @@ const VAULT_RECOVERED_LAST_ERROR =
   "Secure storage on this device changed, so saved sign-ins were cleared. Reconnect to restore this connection.";
 const MANAGED_MCP_CONNECTION_FAILED_MESSAGE =
   "OpenWork could not connect to this MCP server. Check its OAuth settings and availability, then try again.";
-const EXTERNAL_HANDSHAKE_REQUEST_PHASES = new Set<EnterpriseMcpRequestPhase>([
+const EXTERNAL_HANDSHAKE_REQUEST_PHASES = new Set<RemoteMcpRequestPhase>([
   "oauth-client-registration",
   "mcp-initialize",
 ]);
@@ -504,13 +504,13 @@ function authorizationStorageKey(key: Buffer, authorizationId: string): string {
   return createHmac("sha256", key).update(authorizationId).digest("base64url");
 }
 
-function ensurePersistenceContext(context: EnterpriseMcpPersistenceContext): void {
+function ensurePersistenceContext(context: RemoteMcpPersistenceContext): void {
   if (context.signal.aborted || Date.now() >= context.commitExpiresAt) {
     throw new Error("The managed MCP persistence deadline expired.");
   }
 }
 
-function createPersistence(config: ServerConfig, workspaceId: string, name: string): EnterpriseMcpOAuthPersistence {
+function createPersistence(config: ServerConfig, workspaceId: string, name: string): RemoteMcpOAuthPersistence {
   const loadConnection = () => withVaultRead(config, (vault) => requireConnection(vault, workspaceId, name));
   return {
     clientRegistrations: {
@@ -532,7 +532,7 @@ function createPersistence(config: ServerConfig, workspaceId: string, name: stri
         return withVaultMutation(config, (vault) => {
           const connection = requireConnection(vault, workspaceId, name);
           if (connection.clientRegistration) return connection.clientRegistration;
-          const registration: EnterpriseMcpOAuthClientRegistration = {
+          const registration: RemoteMcpOAuthClientRegistration = {
             clientInformation,
             revision: randomUUID(),
             source,
@@ -621,7 +621,7 @@ function createPersistence(config: ServerConfig, workspaceId: string, name: stri
           return connection.authorizations[authorizationStorageKey(key, id)];
         });
         if (!stored) return undefined;
-        const handle: EnterpriseMcpOAuthAuthorizationHandle = {
+        const handle: RemoteMcpOAuthAuthorizationHandle = {
           id,
           revision: stored.revision,
           expiresAt: stored.expiresAt,
@@ -664,7 +664,7 @@ function createPersistence(config: ServerConfig, workspaceId: string, name: stri
   };
 }
 
-async function enterpriseConnection(config: ServerConfig, workspaceId: string, name: string): Promise<EnterpriseMcpConnection> {
+async function enterpriseConnection(config: ServerConfig, workspaceId: string, name: string): Promise<RemoteMcpConnection> {
   const connection = await withVaultRead(config, (vault) => requireConnection(vault, workspaceId, name));
   return {
     id: connection.id,
@@ -681,8 +681,8 @@ async function enterpriseConnection(config: ServerConfig, workspaceId: string, n
   };
 }
 
-function enterpriseClient(diagnostics?: EnterpriseMcpDiagnosticEvent[]) {
-  return createEnterpriseMcpClient({
+function enterpriseClient(diagnostics?: RemoteMcpDiagnosticEvent[]) {
+  return createRemoteMcpClient({
     fetch: guardedFetch,
     clientName: "OpenWork Local MCP Gateway",
     clientVersion: "1.0.0",
@@ -973,7 +973,7 @@ async function updateConnectionStatus(
 }
 
 type CompletedRequestDiagnostic = {
-  requestPhase: EnterpriseMcpRequestPhase;
+  requestPhase: RemoteMcpRequestPhase;
   outcome: "succeeded" | "failed";
   httpStatus?: number;
 };
@@ -991,7 +991,7 @@ const NETWORK_FAILURE_CODES = new Set([
 ]);
 
 function lastHandshakeRequestDiagnostic(
-  diagnostics: EnterpriseMcpDiagnosticEvent[],
+  diagnostics: RemoteMcpDiagnosticEvent[],
 ): CompletedRequestDiagnostic | null {
   for (let index = diagnostics.length - 1; index >= 0; index -= 1) {
     const event = diagnostics[index];
@@ -1023,7 +1023,7 @@ function errorCauseChain(error: unknown): unknown[] {
   return chain;
 }
 
-function hasConcreteRequestCause(error: EnterpriseMcpClientError, diagnostic: CompletedRequestDiagnostic): boolean {
+function hasConcreteRequestCause(error: RemoteMcpClientError, diagnostic: CompletedRequestDiagnostic): boolean {
   const chain = errorCauseChain(error.cause);
   if (diagnostic.httpStatus !== undefined) {
     return diagnostic.httpStatus >= 400
@@ -1037,9 +1037,9 @@ function hasConcreteRequestCause(error: EnterpriseMcpClientError, diagnostic: Co
 
 function externalHandshakeApiError(
   error: unknown,
-  diagnostics: EnterpriseMcpDiagnosticEvent[],
+  diagnostics: RemoteMcpDiagnosticEvent[],
 ): ApiError | null {
-  if (!(error instanceof EnterpriseMcpClientError)
+  if (!(error instanceof RemoteMcpClientError)
     || error.cause instanceof AggregateError
     || error.requestPhase === null) {
     return null;
@@ -1059,7 +1059,7 @@ async function rethrowConnectionFailure(
   workspaceId: string,
   name: string,
   error: unknown,
-  diagnostics: EnterpriseMcpDiagnosticEvent[],
+  diagnostics: RemoteMcpDiagnosticEvent[],
   internalFallback: string,
 ): Promise<never> {
   const apiError = externalHandshakeApiError(error, diagnostics);
@@ -1078,7 +1078,7 @@ async function verifyTools(
   workspaceId: string,
   name: string,
   redirectUri: string,
-  diagnostics: EnterpriseMcpDiagnosticEvent[],
+  diagnostics: RemoteMcpDiagnosticEvent[],
 ): Promise<void> {
   const connection = await enterpriseConnection(config, workspaceId, name);
   await enterpriseClient(diagnostics).listTools({ connection, redirectUri });
@@ -1118,7 +1118,7 @@ export async function startLocalManagedMcpAuthorization(config: ServerConfig, wo
   await writeManagedRuntimeEntry(config, workspaceId, name, true);
   const authorizationId = await createAuthorizationState(config, workspaceId, name);
   const redirectUri = localManagedMcpCallbackUrl(config);
-  const diagnostics: EnterpriseMcpDiagnosticEvent[] = [];
+  const diagnostics: RemoteMcpDiagnosticEvent[] = [];
   try {
     const connection = await enterpriseConnection(config, workspaceId, name);
     const result = await enterpriseClient(diagnostics).connect({ connection, redirectUri, authorizationId });
@@ -1139,7 +1139,7 @@ export async function completeLocalManagedMcpAuthorization(
   code: string,
 ): Promise<{ connection: LocalManagedMcpPublicConnection; workspaceId: string }> {
   const payload = await verifyAuthorizationState(config, state);
-  const diagnostics: EnterpriseMcpDiagnosticEvent[] = [];
+  const diagnostics: RemoteMcpDiagnosticEvent[] = [];
   try {
     const connection = await enterpriseConnection(config, payload.workspaceId, payload.name);
     await enterpriseClient(diagnostics).completeAuthorization({

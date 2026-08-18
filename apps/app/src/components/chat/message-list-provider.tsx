@@ -21,12 +21,12 @@ interface MessageListContextValue {
   onRevertToUserMessage: (messageId: string) => void
   onForkAtMessage: (messageId: string) => void
   onEditUserMessage: (messageId: string, text: string) => void
-  onMcpReconnect: (
+  onMcpReconnect?: (
     action: ChatToolReconnectAction,
     onProgress: (progress: ChatToolReconnectProgress) => void,
   ) => Promise<ChatToolReconnectResult>
-  onMcpReopenAuthorization: (action: ChatToolReconnectAction, authorizeUrl: string) => Promise<void>
-  onMcpRetry: (action: ChatToolReconnectAction) => void | Promise<void>
+  onMcpReopenAuthorization?: (action: ChatToolReconnectAction, authorizeUrl: string) => Promise<void>
+  onMcpRetry?: (action: ChatToolReconnectAction) => void | Promise<void>
 }
 
 const MessageListContext = React.createContext<MessageListContextValue | null>(null)
@@ -41,12 +41,12 @@ interface MessageListProviderProps {
   onRevertToUserMessage: (messageId: string) => void
   onForkAtMessage: (messageId: string) => void
   onEditUserMessage: (messageId: string, text: string) => void
-  onMcpReconnect: (
+  onMcpReconnect?: (
     action: ChatToolReconnectAction,
     onProgress: (progress: ChatToolReconnectProgress) => void,
   ) => Promise<ChatToolReconnectResult>
-  onMcpReopenAuthorization: (action: ChatToolReconnectAction, authorizeUrl: string) => Promise<void>
-  onMcpRetry: (action: ChatToolReconnectAction) => void | Promise<void>
+  onMcpReopenAuthorization?: (action: ChatToolReconnectAction, authorizeUrl: string) => Promise<void>
+  onMcpRetry?: (action: ChatToolReconnectAction) => void | Promise<void>
   displaySuggestions: boolean
   providerConnectedCount: number
   dispatchAction: (action: DispatchAction) => void

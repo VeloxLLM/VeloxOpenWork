@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { EnterpriseMcpClientError } from "@openwork/enterprise-mcp-client";
+import { RemoteMcpClientError } from "@veloxopenwork/local-mcp-client";
 
 import { ApiError } from "./errors.js";
 import {
@@ -438,7 +438,7 @@ describe("OpenWork-managed local MCP OAuth gateway", () => {
         message: "Unexpected server error",
       });
       expect(captured).toHaveLength(1);
-      expect(captured[0]).toBeInstanceOf(EnterpriseMcpClientError);
+      expect(captured[0]).toBeInstanceOf(RemoteMcpClientError);
       expect(captured[0]).not.toBeInstanceOf(ApiError);
       expect(captured[0]).toMatchObject({
         code: "MCP_CONNECTION_HANDSHAKE_FAILED",

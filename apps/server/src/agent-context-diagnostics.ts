@@ -28,7 +28,6 @@ import {
   probeOpenworkCloudCatalog,
   type CloudCatalogProbe,
 } from "./agent-context-cloud-probe.js";
-import { readActivatedEnterpriseDenOrigin } from "./enterprise-den-origin.js";
 import {
   isCloudEndpointCertificateVerificationFailure,
   probeCloudEndpointTransport,
@@ -1451,14 +1450,7 @@ export async function runAgentContextDiagnostics(input: {
     return "unspecified";
   };
   const engineReachableNow = engineInspectionStatus === "observed" || engineInspectionStatus === "invalid";
-  // Local workspaces only: the activation record describes this installation,
-  // so it must never authorize egress on behalf of a remote workspace shell.
-  const activatedEnterpriseOrigin = input.workspace.workspaceType === "local"
-    ? await (input.dependencies?.readActivatedEnterpriseOrigin
-      ?? ((signal?: AbortSignal) => readActivatedEnterpriseDenOrigin({ signal })))(
-        input.dependencies?.signal,
-      ).catch(() => null)
-    : null;
+  const activatedEnterpriseOrigin = null;
   input.dependencies?.signal?.throwIfAborted();
   // Cached engine registration and agent tool policy are comparison inputs
   // for the differential verdict, never eligibility gates: the independent

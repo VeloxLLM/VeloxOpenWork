@@ -250,45 +250,6 @@ export type OpencodeConfigFile = {
   content: string | null;
 };
 
-export type UpdaterEnvironment = {
-  supported: boolean;
-  reason: string | null;
-  executablePath: string | null;
-  appBundlePath: string | null;
-};
-
-export type CacheResetResult = {
-  removed: string[];
-  missing: string[];
-  errors: string[];
-};
-
-export type NukeManifestPreview = {
-  deletePaths: string[];
-  bootstrapPath: string;
-  preserveBootstrapPath: string | null;
-  partitions: string[];
-};
-
-export type NukeOptions = {
-  preserveBootstrap: boolean;
-};
-
-export type NukeReceiptError = {
-  path: string;
-  message: string;
-  code?: string;
-};
-
-export type NukeReceipt = {
-  deleted: string[];
-  pendingRetry: string[];
-  errors: NukeReceiptError[];
-  preservedBootstrap: boolean;
-  relaunchMode: "cleanup_worker" | "direct";
-  workerScheduled: boolean;
-};
-
 export type DesktopFetchInit = {
   method?: string;
   headers?: Record<string, string>;
@@ -310,26 +271,6 @@ export type WorkspaceCreateInput = {
   folderPath: string;
   name?: string | null;
   preset?: string | null;
-};
-
-export type WorkspaceCreateRemoteInput = {
-  baseUrl: string;
-  remoteType?: "openwork" | "opencode" | null;
-  directory?: string | null;
-  displayName?: string | null;
-  openworkHostUrl?: string | null;
-  openworkToken?: string | null;
-  openworkClientToken?: string | null;
-  openworkHostToken?: string | null;
-  openworkWorkspaceId?: string | null;
-  openworkWorkspaceName?: string | null;
-  sandboxBackend?: string | null;
-  sandboxRunId?: string | null;
-  sandboxContainerName?: string | null;
-};
-
-export type WorkspaceUpdateRemoteInput = WorkspaceCreateRemoteInput & {
-  workspaceId: string;
 };
 
 export type UiControlBridgeInfo = {
@@ -359,8 +300,6 @@ export type DesktopCommandMap = {
   workspaceSetSelected: { args: [workspaceId: string]; result: WorkspaceList };
   workspaceSetRuntimeActive: { args: [workspaceId: string | null]; result: WorkspaceList };
   workspaceCreate: { args: [input: WorkspaceCreateInput]; result: WorkspaceList };
-  workspaceCreateRemote: { args: [input: WorkspaceCreateRemoteInput]; result: WorkspaceList };
-  workspaceUpdateRemote: { args: [input: WorkspaceUpdateRemoteInput]; result: WorkspaceList };
   workspaceUpdateDisplayName: {
     args: [input: { workspaceId: string; displayName?: string | null }];
     result: WorkspaceList;
@@ -458,8 +397,6 @@ export type DesktopCommandMap = {
     args: [rawUrl: string];
     result: { ok: true; config: DesktopBootstrapConfig } | ConnectLinkVerifyFailure;
   };
-  nukeOpenworkAndOpencodeConfigPreview: { args: [options?: NukeOptions]; result: NukeManifestPreview };
-  nukeOpenworkAndOpencodeConfigAndExit: { args: [options?: NukeOptions]; result: NukeReceipt };
 
   // Sandbox
   sandboxCleanupOpenworkContainers: { args: []; result: OpenworkDockerCleanupResult };
@@ -513,32 +450,36 @@ export type DesktopCommandMap = {
   };
   uninstallSkill: { args: [projectDir: string, skillName: string]; result: ExecResult };
 
-  // Updater / config / resets
-  updaterEnvironment: { args: []; result: UpdaterEnvironment };
+  // Local provider and OpenCode configuration
   readOpencodeConfig: { args: [scope: string, projectDir?: string]; result: OpencodeConfigFile };
   writeOpencodeConfig: {
     args: [scope: string, projectDir: string, content: string];
     result: ExecResult;
   };
-  providerSecretGet: { args: [providerId: string]; result: string | null };
-  providerSecretSet: { args: [providerId: string, value: string]; result: ExecResult };
-  providerSecretDelete: { args: [providerId: string]; result: ExecResult };
-  providerProxyGet: { args: [providerId: string]; result: string | null };
-  providerProxySet: { args: [providerId: string, value: string]; result: ExecResult };
-  providerProxyDelete: { args: [providerId: string]; result: ExecResult };
-  providerGatewayUrl: { args: []; result: string | null };
+  providerCredentialsGet: {
+    args: [providerId: string];
+    result: { hasApiKey: boolean; proxy: { url: string; username: string } | null };
+  };
+  providerCredentialsSet: {
+    args: [input: {
+      providerId: string;
+      apiKey?: string | null;
+      proxyEnabled: boolean;
+      proxyUrl?: string;
+      proxyUsername?: string;
+      proxyPassword?: string;
+    }];
+    result: ExecResult;
+  };
+  providerCredentialsDelete: { args: [providerId: string]; result: ExecResult };
+  providerGatewayUrl: {
+    args: [input: { providerId: string; baseUrl: string }];
+    result: string | null;
+  };
   providerGatewayTest: {
     args: [input: { providerId: string; baseUrl: string; proxyUrl?: string | null }];
     result: ExecResult;
   };
-  /**
-   * The renderer passes its reset-modal mode, but the main process currently
-   * IGNORES it and always removes workspace state + bootstrap config; only
-   * the renderer's localStorage cleanup is mode-scoped. Follow-up: decide
-   * whether "onboarding" should preserve desktop workspace state.
-   */
-  resetOpenworkState: { args: [mode?: "onboarding" | "all"]; result: unknown };
-  resetOpencodeCache: { args: []; result: CacheResetResult };
   opencodeMcpAuth: { args: [action: string, name: string]; result: ExecResult };
   setWindowDecorations: { args: [decorated: boolean]; result: unknown };
 

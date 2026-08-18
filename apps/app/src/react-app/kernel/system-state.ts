@@ -3,12 +3,8 @@ import { useCallback, useMemo, useState } from "react";
 import type {
   ReloadReason,
   ReloadTrigger,
-  ResetOpenworkMode,
 } from "../../app/types";
-import { relaunchDesktopApp, resetOpenworkState } from "../../app/lib/desktop";
 import {
-  addOpencodeCacheHint,
-  isDesktopRuntime,
   safeStringify,
 } from "../../app/utils";
 import { t } from "../../i18n";
@@ -22,13 +18,6 @@ export type ReloadState = {
   reloadError: string | null;
 };
 
-export type ResetState = {
-  resetModalOpen: boolean;
-  resetModalMode: ResetOpenworkMode;
-  resetModalText: string;
-  resetModalBusy: boolean;
-};
-
 export type SystemStateControls = {
   reload: ReloadState;
   reloadCopy: { title: string; body: string };
@@ -36,30 +25,8 @@ export type SystemStateControls = {
   clearReloadRequired: () => void;
   reloadWorkspaceEngine: () => Promise<void>;
   canReloadWorkspaceEngine: boolean;
-  reset: ResetState;
-  openResetModal: (mode: ResetOpenworkMode) => void;
-  closeResetModal: () => void;
-  setResetModalText: (value: string) => void;
-  confirmReset: () => Promise<void>;
   setError: (message: string | null) => void;
 };
-
-function clearOpenworkLocalStorage(mode: ResetOpenworkMode) {
-  if (typeof window === "undefined") return;
-  try {
-    if (mode === "all") {
-      window.localStorage.clear();
-      return;
-    }
-    const keys = Object.keys(window.localStorage);
-    for (const key of keys) {
-      if (/openwork/.test(key)) window.localStorage.removeItem(key);
-    }
-    window.localStorage.removeItem("openwork_mode_pref");
-  } catch {
-    // ignore
-  }
-}
 
 type UseSystemStateOptions = {
   hasActiveRuns: () => boolean;
@@ -80,12 +47,6 @@ export function useSystemState(
   const [reloadTrigger, setReloadTrigger] = useState<ReloadTrigger | null>(null);
   const [reloadBusy, setReloadBusy] = useState(false);
   const [reloadError, setReloadError] = useState<string | null>(null);
-
-  const [resetModalOpen, setResetModalOpen] = useState(false);
-  const [resetModalMode, setResetModalMode] =
-    useState<ResetOpenworkMode>("onboarding");
-  const [resetModalText, setResetModalText] = useState("");
-  const [resetModalBusy, setResetModalBusy] = useState(false);
 
   const markReloadRequired = useCallback(
     (reason: ReloadReason, trigger?: ReloadTrigger) => {
@@ -171,54 +132,6 @@ export function useSystemState(
     }
   }, [clearReloadRequired, options, reloadBusy]);
 
-  const openResetModal = useCallback(
-    (mode: ResetOpenworkMode) => {
-      if (options.hasActiveRuns()) {
-        options.setError(t("system.stop_active_runs_before_reset"));
-        return;
-      }
-      options.setError(null);
-      setResetModalMode(mode);
-      setResetModalText("");
-      setResetModalOpen(true);
-    },
-    [options],
-  );
-
-  const closeResetModal = useCallback(() => {
-    if (resetModalBusy) return;
-    setResetModalOpen(false);
-  }, [resetModalBusy]);
-
-  const confirmReset = useCallback(async () => {
-    if (resetModalBusy) return;
-    if (options.hasActiveRuns()) {
-      options.setError(t("system.stop_active_runs_before_reset"));
-      return;
-    }
-    if (resetModalText.trim().toUpperCase() !== "RESET") return;
-
-    setResetModalBusy(true);
-    options.setError(null);
-
-    try {
-      if (isDesktopRuntime()) {
-        await resetOpenworkState(resetModalMode);
-      }
-      clearOpenworkLocalStorage(resetModalMode);
-      if (isDesktopRuntime()) {
-        await relaunchDesktopApp();
-      } else {
-        window.location.reload();
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : safeStringify(error);
-      options.setError(addOpencodeCacheHint(message));
-      setResetModalBusy(false);
-    }
-  }, [options, resetModalBusy, resetModalMode, resetModalText]);
-
   return useMemo<SystemStateControls>(
     () => ({
       reload: {
@@ -234,24 +147,11 @@ export function useSystemState(
       clearReloadRequired,
       reloadWorkspaceEngine,
       canReloadWorkspaceEngine,
-      reset: {
-        resetModalOpen,
-        resetModalMode,
-        resetModalText,
-        resetModalBusy,
-      },
-      openResetModal,
-      closeResetModal,
-      setResetModalText,
-      confirmReset,
       setError: options.setError,
     }),
     [
       clearReloadRequired,
-      closeResetModal,
-      confirmReset,
       markReloadRequired,
-      openResetModal,
       options.setError,
       reloadCopy,
       reloadBusy,
@@ -262,10 +162,6 @@ export function useSystemState(
       reloadPending,
       reloadReasons,
       reloadTrigger,
-      resetModalBusy,
-      resetModalMode,
-      resetModalOpen,
-      resetModalText,
     ],
   );
 }

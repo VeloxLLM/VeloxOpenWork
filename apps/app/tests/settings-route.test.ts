@@ -1,4 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { setLocale } from "../src/i18n";
+
+beforeEach(() => setLocale("en"));
 
 import {
   extensionsPathForRoute,

@@ -30,12 +30,6 @@ import {
 } from "./slash-command";
 import { encodeConnectSkillToken } from "./connect-skill-token";
 import { FILE_URL_RE, HTTP_URL_RE, type PastedTextChip } from "./pasted-text";
-import { loadSessionConnectCapabilities } from "@/react-app/domains/connections/cloud-inventory-cache";
-import { useOrgMcpConnections } from "@/react-app/domains/connections/use-org-mcp-connections";
-import {
-  composerConnectionSignIn,
-  mergeComposerConnectionInventory,
-} from "./composer-connections";
 
 type MentionItem = {
   id: string;
@@ -228,7 +222,6 @@ function pluginSlashCommandName(file: CloudImportedPluginFile) {
 
 export function ReactSessionComposer(props: ComposerProps) {
   let fileInput: HTMLInputElement | undefined;
-  const orgMcp = useOrgMcpConnections();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentMenuOpen, setAgentMenuOpen] = useState(false);
   const [refreshingOrganizationModels, setRefreshingOrganizationModels] = useState(false);
@@ -653,26 +646,6 @@ export function ReactSessionComposer(props: ComposerProps) {
   }, [toolMenuOpen]);
 
   useEffect(() => {
-    if (!toolMenuOpen) return;
-    void orgMcp.refresh();
-  }, [orgMcp.refresh, toolMenuOpen]);
-
-  const connectingId = orgMcp.connectingId;
-  const connectingIdRef = useRef(connectingId);
-  useEffect(() => {
-    const previous = connectingIdRef.current;
-    connectingIdRef.current = connectingId;
-    if (!previous || connectingId) return;
-    void listMcpRef.current?.();
-    void loadSessionConnectCapabilities();
-  }, [connectingId]);
-
-  useEffect(() => {
-    if (!toolMenuOpen || !orgMcp.error) return;
-    toast.warning(orgMcp.error);
-  }, [orgMcp.error, toolMenuOpen]);
-
-  useEffect(() => {
     if (!slashOpen && !toolMenuOpen) return;
     const openId = toolMenuLoadRef.current.openId;
     if ((slashOpen || toolMenuSection === "skills") && (!toolMenuOpen || !toolMenuLoadRef.current.skills)) {
@@ -746,14 +719,10 @@ export function ReactSessionComposer(props: ComposerProps) {
       skill.origin === "openwork-connect" || !localCommandSkillNames.has(skill.name)
     ),
   ];
-  const connectionInventory = useMemo(
-    () => mergeComposerConnectionInventory({
-      mcpServers: props.mcpServers ?? [],
-      mcpStatuses: props.mcpStatuses,
-      orgConnections: orgMcp.connections,
-    }),
-    [orgMcp.connections, props.mcpServers, props.mcpStatuses],
-  );
+  const connectionInventory = useMemo(() => ({
+    servers: props.mcpServers ?? [],
+    statuses: props.mcpStatuses ?? {},
+  }), [props.mcpServers, props.mcpStatuses]);
   const activePlugin = toolMenuSection.startsWith("plugin:")
     ? importedPlugins.find((plugin) => `plugin:${plugin.pluginId}` === toolMenuSection) ?? null
     : null;
@@ -764,7 +733,7 @@ export function ReactSessionComposer(props: ComposerProps) {
     if (servers.length === 0) {
       return (
         <div className="px-3 py-2 text-xs text-gray-10">
-          {(!mcpLoaded && mcpLoading) || (orgMcp.loading && !orgMcp.loaded)
+          {!mcpLoaded && mcpLoading
             ? t("composer.loading_commands")
             : t("composer.no_connections_mcps")}
         </div>
@@ -775,9 +744,6 @@ export function ReactSessionComposer(props: ComposerProps) {
         {servers.map((server) => {
           const status = mcpEntryStatus(server, connectionInventory.statuses);
           const statusLabel = toolMenuMcpStatusLabel(status);
-          const connection = orgMcp.connections.find((entry) => entry.id === server.orgMcpConnectionId);
-          const signIn = composerConnectionSignIn({ server, status, connection });
-          const connecting = Boolean(signIn && orgMcp.connectingId === signIn.connectionId);
           const source = [server.marketplaceName, server.pluginName].filter(Boolean).join(" · ");
           return (
             <div
@@ -787,19 +753,7 @@ export function ReactSessionComposer(props: ComposerProps) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1 truncate text-xs font-semibold text-gray-11">{server.name}</div>
-                  {signIn ? (
-                    <button
-                      type="button"
-                      className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-12 px-2 py-0.5 text-[10px] font-medium text-gray-1 transition-colors hover:bg-gray-11 disabled:opacity-60"
-                      disabled={connecting}
-                      onClick={() => {
-                        void orgMcp.connect(signIn.connectionId, { forceFreshAuthorization: signIn.reconnect });
-                      }}
-                    >
-                      {connecting ? <LoaderCircle size={10} className="animate-spin" /> : null}
-                      {signIn.reconnect ? t("mcp.org_connection_reconnect_action") : t("mcp.org_connection_connect_action")}
-                    </button>
-                  ) : statusLabel ? (
+                  {statusLabel ? (
                     <span className="shrink-0 rounded-full bg-gray-3 px-2 py-0.5 text-[10px] font-medium text-gray-11">
                       {statusLabel}
                     </span>
@@ -1718,8 +1672,6 @@ export function ReactSessionComposer(props: ComposerProps) {
                   }}
                   disabled={props.steering}
                   sessionId={props.sessionId}
-                  openWorkModelsEntitled={props.openWorkModelsEntitled}
-                  openWorkModelsSyncing={props.openWorkModelsSyncing}
                   fallbackOptions={props.modelOptions}
                 />
                 {props.modelUnavailable ? props.onRefreshOrganizationModels ? (

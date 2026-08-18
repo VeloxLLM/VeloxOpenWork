@@ -30,6 +30,7 @@ export type AiSettingsViewProps = {
   providerDisconnectStatus: string | null;
   onOpenProviderAuth: () => void | Promise<void>;
   onDisconnectProvider: (providerId: string) => void | Promise<void>;
+  onEditProvider: (providerId: string) => void | Promise<void>;
   canDisconnectProvider: (provider: ConnectedProvider) => boolean;
   canAddProviders: boolean;
 };
@@ -74,15 +75,20 @@ export function AiSettingsView(props: AiSettingsViewProps) {
                     <div className="truncate font-mono text-xs text-muted-foreground">{provider.id}</div>
                   </div>
                 </div>
-                {props.canDisconnectProvider(provider) ? (
-                  <Button
-                    variant="destructive"
-                    onClick={() => void props.onDisconnectProvider(provider.id)}
-                    disabled={props.busy || props.providerAuthBusy}
-                  >
-                    {t("settings.ai.disconnect")}
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => void props.onEditProvider(provider.id)} disabled={props.busy || props.providerAuthBusy}>
+                    {t("common.edit")}
                   </Button>
-                ) : null}
+                  {props.canDisconnectProvider(provider) ? (
+                    <Button
+                      variant="destructive"
+                      onClick={() => void props.onDisconnectProvider(provider.id)}
+                      disabled={props.busy || props.providerAuthBusy}
+                    >
+                      {t("settings.ai.disconnect")}
+                    </Button>
+                  ) : null}
+                </div>
               </LayoutSectionItem>
             ))}
           </div>

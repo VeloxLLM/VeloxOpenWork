@@ -12,7 +12,7 @@ packages:
   - "apps/app"
   - "apps/desktop"
   - "apps/server"
-  - "packages/enterprise-mcp-client"
+  - "packages/local-mcp-client"
   - "packages/headless-threads"
   - "packages/install-config"
   - "packages/paths"

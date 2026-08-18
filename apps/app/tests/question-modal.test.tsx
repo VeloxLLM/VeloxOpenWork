@@ -1,9 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import type { QuestionInfo } from "@opencode-ai/sdk/v2/client";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { QuestionPanel } from "../src/react-app/domains/session/modals/question-modal";
+import { setLocale } from "../src/i18n";
+
+beforeEach(() => setLocale("en"));
 
 function renderQuestion(question: QuestionInfo) {
   return renderToStaticMarkup(

@@ -7,18 +7,13 @@ declare const expect: (value: unknown) => {
 import { resolveModelPickerEmptyState } from "./model-picker-modal";
 
 describe("resolveModelPickerEmptyState", () => {
-  test("shows organization recovery and hides provider connect under managed model restriction", () => {
+  test("offers local provider setup when no models are configured", () => {
     const state = resolveModelPickerEmptyState({
       providerGroupCount: 0,
       query: "",
-      organizationModelsEmpty: true,
-      restrictToCloud: true,
-      organizationModelsSettingsUrl: "https://app.openworklabs.com/dashboard/custom-llm-providers",
     });
 
-    expect(state?.messageKey).toBe("models.organization_models_empty");
-    expect(state?.showConnectProvider).toBe(false);
-    expect(state?.showRefreshOrganizationModels).toBe(true);
-    expect(state?.showOrganizationModelsSettings).toBe(true);
+    expect(state?.messageKey).toBe("models.no_models_available");
+    expect(state?.showConnectProvider).toBe(true);
   });
 });

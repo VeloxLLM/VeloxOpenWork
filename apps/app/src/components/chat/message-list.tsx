@@ -35,10 +35,6 @@ import { ReadFileTool, WriteFileTool } from "@/components/tools/file"
 import { GlobTool } from "@/components/tools/glob"
 import { GrepTool } from "@/components/tools/grep"
 import { LspTool } from "@/components/tools/lsp"
-import {
-  isAutomationProposalToolPart,
-  OpenWorkAutomationProposalTool,
-} from "@/components/tools/openwork-automation-proposal"
 import { OpenWorkSessionCreateTool } from "@/components/tools/openwork-session-create"
 import { QuestionTool } from "@/components/tools/question"
 import { SkillTool } from "@/components/tools/skill"
@@ -228,10 +224,6 @@ const ToolMessageInner = ({ part }: ToolMessageProps) => {
 
   if (part.type === "dynamic-tool" && part.toolName === "openwork_session_create") {
     return <OpenWorkSessionCreateTool part={part} />
-  }
-
-  if (part.type === "dynamic-tool" && isAutomationProposalToolPart(part)) {
-    return <OpenWorkAutomationProposalTool part={part} />
   }
 
   if (isTaskToolPart(part)) {

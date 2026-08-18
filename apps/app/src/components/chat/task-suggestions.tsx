@@ -8,15 +8,9 @@ import {
   DescriptiveButtonTitle,
 } from "@/components/descriptive-button"
 import { useMessageList } from "@/components/chat/message-list-provider"
+import { t } from "@/i18n"
 import { cn } from "@/lib/utils"
-import { useOrgRestrictions } from "@/react-app/domains/cloud/desktop-config-provider"
-import { BoltIcon, CubeIcon, DocumentChartBarIcon, GlobeAltIcon, SparklesIcon } from "@heroicons/react/24/solid"
-
-const CSV_PROMPT =
-  "Create a sample CSV file with 20 rows of fake customer data (name, email, company, revenue). Then show me a summary of the data."
-
-const BROWSER_PROMPT =
-  "Open craigslist.org in the browser and search for couches for sale. Show me the top 5 results with prices."
+import { BoltIcon, CubeIcon, DocumentChartBarIcon, GlobeAltIcon } from "@heroicons/react/24/solid"
 
 const ORGANIZATION_PROMPT_TITLES = ["Organization prompt 1", "Organization prompt 2", "Organization prompt 3"]
 
@@ -39,25 +33,19 @@ interface TaskSuggestionsProps {
 
 export function TaskSuggestions({ className }: TaskSuggestionsProps) {
   const { displaySuggestions, providerConnectedCount, dispatchAction, setPrompt } = useMessageList()
-  const orgRestrictions = useOrgRestrictions()
-  const organizationPrompts = orgRestrictions.onboardingPrompts
-  const organizationPromptDescriptions = orgRestrictions.onboardingPromptDescriptions
 
   if (!displaySuggestions) {
     return null
   }
 
   const noProviders = providerConnectedCount === 0
-  const hasOrganizationPrompts = organizationPrompts !== undefined
 
   return (
     <div className={cn("@container flex flex-col gap-4 pt-1", className)}>
       <p className="text-muted-foreground font-medium select-none">
         {noProviders
-          ? "Connect a model provider to get started:"
-          : hasOrganizationPrompts
-            ? "Try one of your organization's prompts:"
-            : "Try one of these:"}
+          ? t("models.no_models_available")
+          : t("session.hero_title")}
       </p>
       <div className="grid min-w-0 gap-2 @lg:grid-cols-2 @2xl:grid-cols-3">
         {noProviders ? (
@@ -76,52 +64,32 @@ export function TaskSuggestions({ className }: TaskSuggestionsProps) {
               <BoltIcon className="size-6 text-blue-10" aria-hidden />
             </DescriptiveButtonIcon>
             <DescriptiveButtonContent>
-              <DescriptiveButtonTitle>Connect a model provider</DescriptiveButtonTitle>
+              <DescriptiveButtonTitle>{t("providers.connect_provider")}</DescriptiveButtonTitle>
               <DescriptiveButtonDescription>
-                Add an API key for Anthropic, OpenAI, Google, or others
+                {t("providers.manual_add_hint")}
               </DescriptiveButtonDescription>
             </DescriptiveButtonContent>
           </DescriptiveButton>
         ) : null}
 
-        {hasOrganizationPrompts ? (
-          organizationPrompts.map((prompt, index) => {
-            const card = resolveOrganizationPromptCardContent({
-              prompt,
-              description: organizationPromptDescriptions?.[index],
-              index,
-            })
-            return (
-              <DescriptiveButton key={`${index}-${prompt}`} orientation="vertical" onClick={() => setPrompt(card.selectionPrompt)}>
-                <DescriptiveButtonIcon>
-                  <SparklesIcon className="size-6 text-purple-10" aria-hidden />
-                </DescriptiveButtonIcon>
-                <DescriptiveButtonContent>
-                  <DescriptiveButtonTitle>{card.title}</DescriptiveButtonTitle>
-                  <DescriptiveButtonDescription>{card.description}</DescriptiveButtonDescription>
-                </DescriptiveButtonContent>
-              </DescriptiveButton>
-            )
-          })
-        ) : (
-          <>
-            <DescriptiveButton orientation="vertical" onClick={() => setPrompt(CSV_PROMPT)}>
+        <>
+            <DescriptiveButton orientation="vertical" onClick={() => setPrompt(t("session.hero_suggestion_2_prompt"))}>
               <DescriptiveButtonIcon>
                 <DocumentChartBarIcon className="size-6 text-green-10" aria-hidden />
               </DescriptiveButtonIcon>
               <DescriptiveButtonContent>
-                <DescriptiveButtonTitle>Edit a CSV</DescriptiveButtonTitle>
-                <DescriptiveButtonDescription>Create a sample spreadsheet</DescriptiveButtonDescription>
+                <DescriptiveButtonTitle>{t("session.hero_suggestion_2_title")}</DescriptiveButtonTitle>
+                <DescriptiveButtonDescription>{t("session.hero_suggestion_2_description")}</DescriptiveButtonDescription>
               </DescriptiveButtonContent>
             </DescriptiveButton>
 
-            <DescriptiveButton orientation="vertical" onClick={() => setPrompt(BROWSER_PROMPT)}>
+            <DescriptiveButton orientation="vertical" onClick={() => setPrompt(t("session.hero_suggestion_4_prompt"))}>
               <DescriptiveButtonIcon>
                 <GlobeAltIcon className="size-6 text-blue-10" aria-hidden />
               </DescriptiveButtonIcon>
               <DescriptiveButtonContent>
-                <DescriptiveButtonTitle>Browse the web</DescriptiveButtonTitle>
-                <DescriptiveButtonDescription>Search Craigslist for couches</DescriptiveButtonDescription>
+                <DescriptiveButtonTitle>{t("session.hero_suggestion_4_title")}</DescriptiveButtonTitle>
+                <DescriptiveButtonDescription>{t("session.hero_suggestion_4_description")}</DescriptiveButtonDescription>
               </DescriptiveButtonContent>
             </DescriptiveButton>
 
@@ -139,12 +107,11 @@ export function TaskSuggestions({ className }: TaskSuggestionsProps) {
                 <CubeIcon className="size-6 text-amber-10" aria-hidden />
               </DescriptiveButtonIcon>
               <DescriptiveButtonContent>
-                <DescriptiveButtonTitle>Connect an extension</DescriptiveButtonTitle>
-                <DescriptiveButtonDescription>Add MCPs and integrations</DescriptiveButtonDescription>
+                <DescriptiveButtonTitle>{t("mcp.your_apps")}</DescriptiveButtonTitle>
+                <DescriptiveButtonDescription>{t("mcp.add_mcp_description")}</DescriptiveButtonDescription>
               </DescriptiveButtonContent>
             </DescriptiveButton>
-          </>
-        )}
+        </>
       </div>
     </div>
   )

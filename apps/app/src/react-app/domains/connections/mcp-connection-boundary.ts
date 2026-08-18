@@ -1,13 +1,14 @@
 import { getMcpServerName, type McpDirectoryInfo } from "../../../app/constants";
-import { CLOUD_MCP_SERVER_NAME } from "./cloud-mcp-user-state";
 
 export function conflictsWithOpenworkConnect(
-  entry: Pick<McpDirectoryInfo, "id" | "name" | "serverName" | "managedBy">,
+  entry: Pick<McpDirectoryInfo, "id" | "name" | "serverName">,
 ): boolean {
   const serverName = entry.id ?? getMcpServerName({
     ...entry,
     description: "",
     oauth: false,
   });
-  return entry.managedBy !== "openwork-connect" && serverName === CLOUD_MCP_SERVER_NAME;
+  // This legacy reserved name belonged to the removed Cloud MCP. Keeping it
+  // unavailable prevents an old Cloud configuration from being recreated.
+  return serverName === "openwork-cloud";
 }

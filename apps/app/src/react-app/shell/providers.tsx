@@ -8,7 +8,6 @@ import { hydrateOpenworkServerSettingsFromEnv } from "@/app/lib/openwork-server"
 import { isDesktopRuntime } from "@/app/utils";
 import { LocalProvider } from "@/react-app/kernel/local-provider";
 import { ServerProvider } from "@/react-app/kernel/server-provider";
-import { ArchitectureMismatchGate } from "./architecture-mismatch-gate";
 import { BootStateProvider } from "./boot-state";
 import { DesktopRuntimeBoot } from "./desktop-runtime-boot";
 import { startDebugLogger, stopDebugLogger } from "./debug-logger";
@@ -48,15 +47,13 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <BootStateProvider>
       <ServerProvider defaultUrl={resolveDefaultServerUrl()}>
-        <ArchitectureMismatchGate>
-          <DesktopRuntimeBoot />
-          <LocalProvider>
-            <ReloadCoordinatorProvider>
-              {children}
-            </ReloadCoordinatorProvider>
-            <Toaster />
-          </LocalProvider>
-        </ArchitectureMismatchGate>
+        <DesktopRuntimeBoot />
+        <LocalProvider>
+          <ReloadCoordinatorProvider>
+            {children}
+          </ReloadCoordinatorProvider>
+          <Toaster />
+        </LocalProvider>
       </ServerProvider>
     </BootStateProvider>
   );

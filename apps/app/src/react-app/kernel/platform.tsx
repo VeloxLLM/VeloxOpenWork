@@ -26,8 +26,6 @@ export type Platform = {
   restart(): Promise<void>;
   notify(title: string, description?: string, href?: string): Promise<void>;
   storage?: (name?: string) => SyncStorage | AsyncStorage;
-  checkUpdate?: () => Promise<{ updateAvailable: boolean; version?: string }>;
-  update?: () => Promise<void>;
   fetch?: typeof fetch;
   getDefaultServerUrl?: () => Promise<string | null>;
   setDefaultServerUrl?: (url: string | null) => Promise<void>;

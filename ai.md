@@ -21,6 +21,7 @@
 ### 验证
 
 - `pnpm --filter @openwork/app typecheck`
+- `pnpm --filter @openwork/app test`
 - `pnpm --filter @openwork/app build`
 - `pnpm --filter @openwork/desktop typecheck:electron`
 - `node --check apps/desktop/electron/main.mjs`
@@ -28,8 +29,9 @@
 - `pnpm exec bun test tests/provider-catalog.test.ts tests/extension-taxonomy.test.ts`（`apps/app`）
 - `pnpm --filter @openwork/desktop test`
 - `node --check apps/desktop/electron/provider-gateway.mjs`
+- `pnpm build`
 
-桌面原生构建仍受当前机器缺少 Visual Studio C++ Build Tools 影响，`better-sqlite3` 的安装脚本无法完成；依赖已使用 `--ignore-scripts` 安装，前端构建和类型检查不受影响。
+Electron 开发启动和生产构建均已完成验证。Windows 开发脚本已调整为跨平台写法，Provider Gateway 也已公开 `start()` 生命周期方法。
 
 ### 许可证与致谢
 
@@ -56,6 +58,7 @@ VeloxOpenWork is a local desktop adaptation based on the desktop capabilities of
 ### Verification
 
 - `pnpm --filter @openwork/app typecheck`
+- `pnpm --filter @openwork/app test`
 - `pnpm --filter @openwork/app build`
 - `pnpm --filter @openwork/desktop typecheck:electron`
 - `node --check apps/desktop/electron/main.mjs`
@@ -63,8 +66,9 @@ VeloxOpenWork is a local desktop adaptation based on the desktop capabilities of
 - `pnpm exec bun test tests/provider-catalog.test.ts tests/extension-taxonomy.test.ts` (`apps/app`)
 - `pnpm --filter @openwork/desktop test`
 - `node --check apps/desktop/electron/provider-gateway.mjs`
+- `pnpm build`
 
-The native desktop build is still blocked on this machine because Visual Studio C++ Build Tools are unavailable for the `better-sqlite3` install script. Dependencies were installed with `--ignore-scripts`; frontend build and type checks pass.
+Electron development startup and the production build have both been verified. The Windows development scripts now use cross-platform syntax, and the Provider Gateway exposes its `start()` lifecycle method.
 
 ### License and Acknowledgements
 
