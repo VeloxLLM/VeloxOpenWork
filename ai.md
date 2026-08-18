@@ -17,21 +17,20 @@
 - provider 的非敏感配置写入全局 OpenCode 配置，并支持后续刷新模型列表。
 - 移除自动更新器、更新菜单、恢复启动覆盖层及恢复测试模块。
 - Electron 应用名、应用标识、发行配置和启动错误前缀改为 VeloxOpenWork。
+- README、架构说明、内置 Skill/命令说明和本地 MCP 客户端文档已同步为本地桌面模式。
 
 ### 验证
 
 - `pnpm --filter @openwork/app typecheck`
 - `pnpm --filter @openwork/app test`
-- `pnpm --filter @openwork/app build`
 - `pnpm --filter @openwork/desktop typecheck:electron`
-- `node --check apps/desktop/electron/main.mjs`
-- `node --check apps/desktop/electron/preload.mjs`
-- `pnpm exec bun test tests/provider-catalog.test.ts tests/extension-taxonomy.test.ts`（`apps/app`）
 - `pnpm --filter @openwork/desktop test`
-- `node --check apps/desktop/electron/provider-gateway.mjs`
+- `pnpm --filter openwork-server typecheck`
+- `pnpm --filter @veloxopenwork/local-mcp-client typecheck`
+- `pnpm --filter @veloxopenwork/local-mcp-client test`
 - `pnpm build`
 
-Electron 开发启动和生产构建均已完成验证。Windows 开发脚本已调整为跨平台写法，Provider Gateway 也已公开 `start()` 生命周期方法。
+应用测试已通过 440/440，Electron 测试已通过 36/36，本地 MCP 客户端测试已通过 75/75。Electron 开发启动和生产构建均已完成验证。Windows 开发脚本已调整为跨平台写法，Provider Gateway 也已公开 `start()` 生命周期方法。
 
 ### 许可证与致谢
 
@@ -54,21 +53,20 @@ VeloxOpenWork is a local desktop adaptation based on the desktop capabilities of
 - Wrote non-sensitive provider metadata to the global OpenCode configuration.
 - Removed the automatic updater, update menu, recovery boot overlay, and recovery test modules.
 - Updated the Electron application name, identifier, distribution configuration, and startup prefixes to VeloxOpenWork.
+- Synchronized the README, architecture guide, built-in skill/command guidance, and local MCP client documentation with local desktop mode.
 
 ### Verification
 
 - `pnpm --filter @openwork/app typecheck`
 - `pnpm --filter @openwork/app test`
-- `pnpm --filter @openwork/app build`
 - `pnpm --filter @openwork/desktop typecheck:electron`
-- `node --check apps/desktop/electron/main.mjs`
-- `node --check apps/desktop/electron/preload.mjs`
-- `pnpm exec bun test tests/provider-catalog.test.ts tests/extension-taxonomy.test.ts` (`apps/app`)
 - `pnpm --filter @openwork/desktop test`
-- `node --check apps/desktop/electron/provider-gateway.mjs`
+- `pnpm --filter openwork-server typecheck`
+- `pnpm --filter @veloxopenwork/local-mcp-client typecheck`
+- `pnpm --filter @veloxopenwork/local-mcp-client test`
 - `pnpm build`
 
-Electron development startup and the production build have both been verified. The Windows development scripts now use cross-platform syntax, and the Provider Gateway exposes its `start()` lifecycle method.
+The app test suite passed 440/440 tests, Electron tests passed 36/36, and local MCP client tests passed 75/75. Electron development startup and the production build have both been verified. The Windows development scripts now use cross-platform syntax, and the Provider Gateway exposes its `start()` lifecycle method.
 
 ### License and Acknowledgements
 

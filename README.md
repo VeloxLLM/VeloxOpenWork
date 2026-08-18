@@ -1,45 +1,71 @@
-# VeloxOpenWork ⚡
+# VeloxOpenWork
 
-> 一个由 **VeloxLLM** 加速、受 [different-ai/openwork](https://github.com/different-ai/openwork) 启发的极速开源 AI 桌面工作空间。
+> 由 VeloxLLM 加速、基于 [different-ai/openwork](https://github.com/different-ai/openwork) 桌面能力演进的本地 AI 工作空间。
+
+## 中文
+
+VeloxOpenWork 是仅面向本地工作区的 Electron 桌面应用。它保留文件浏览、聊天、流式输出、本地 OpenCode Runtime 和 MCP，同时移除了 Cloud、Account、组织登录、远程工作区、企业版、自动更新和恢复入口。
+
+### 主要能力
+
+- 本地工作区、文件树、多轮对话和流式任务输出。
+- 本地 MCP：可添加本地命令或远程 HTTP MCP，并支持 OAuth MCP 的桌面授权流程。
+- 仅提供中文和 English；首次启动默认中文。
+- 手动管理模型 Provider：Provider ID、名称、Base URL、API Key、多个 Model ID 和默认模型。
+- 默认预置 OpenCode Zen 与 Kilo Auto Free；OpenRouter Free 和 Google Gemini 作为可选模板。
+- 每个 Provider 可独立使用 HTTP/HTTPS 代理。API Key、代理用户名和密码由 Electron `safeStorage` 保护；请求经本机 Loopback Gateway 转发，流式响应保持可用。
+- 本地优先的人工确认和权限审计流程，用于危险命令和敏感文件写入。
+
+### 开发
+
+```powershell
+pnpm install
+pnpm dev
+```
+
+常用验证命令：
+
+```powershell
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+### 致谢与许可证
+
+感谢 [OpenWork](https://github.com/different-ai/openwork) 社区和贡献者提供的开源基础。VeloxOpenWork 保留上游版权归属；仓库内容采用 MIT 许可证，第三方组件继续遵守其原始许可证。详见 [LICENSE](./LICENSE)。
 
 ---
 
-## 💡 核心传承与演进
+## English
 
-本项目在理念和架构上深度借鉴并演进自 **OpenWork**：
+VeloxOpenWork is an Electron desktop app for local workspaces. It retains file browsing, chat, streaming output, the local OpenCode runtime, and MCP, while removing Cloud, Account, organization sign-in, remote workspaces, enterprise features, automatic updates, and recovery entry points.
 
-* **🖥️ 桌面级交互范式**：继承 OpenWork 的极简桌面工作空间交互与 Headless Web 模式，保留直观的文件树浏览、多轮对话与流式输出体验。
-* **🔌 原生 MCP 工具协议**：延续 OpenWork 对 Model Context Protocol (MCP) 的标准适配，支持本地文件系统、浏览器自动化与开发工具链。
-* **⚡ Velox 极速核心赋能**：在 OpenWork 的 Agent 编排机制基础上，重构并加速底层推理调用与任务执行回路，降低端到端 Token 响应延迟与系统内存占用。
-* **🛡️ 本地可控与沙箱安全**：保留核心安全审计机制，对危险终端命令和敏感文件写入提供严格的授权确认流。
+### Highlights
 
-## 🙏 致谢
+- Local workspaces, file tree, multi-turn chat, and streamed task output.
+- Local MCP management for command-based and remote HTTP MCP servers, including desktop OAuth for compatible MCP servers.
+- Chinese and English only, with Chinese selected on first launch.
+- Manual model-provider management: Provider ID, name, Base URL, API key, multiple Model IDs, and default model.
+- OpenCode Zen and Kilo Auto Free are seeded by default; OpenRouter Free and Google Gemini are optional templates.
+- Per-provider HTTP/HTTPS proxies. Electron `safeStorage` protects API keys and proxy credentials; a loopback gateway forwards standard and streaming requests independently for each provider.
+- Local-first human approval and permission auditing for dangerous commands and sensitive file writes.
 
-特别感谢 [OpenWork](https://github.com/different-ai/openwork) 社区及贡献者，为桌面 AI Agent 提供了优秀的基础和开源蓝图。
+### Development
 
-## 📄 许可证
+```powershell
+pnpm install
+pnpm dev
+```
 
-VeloxOpenWork 采用 MIT License。项目如使用或修改 OpenWork 代码，将保留原项目的版权声明和许可证信息。完整条款及归属信息请参阅 [LICENSE](./LICENSE)。
+Common verification commands:
 
----
+```powershell
+pnpm typecheck
+pnpm test
+pnpm build
+```
 
-# VeloxOpenWork ⚡
+### Acknowledgements and License
 
-> An ultra-fast, open-source AI desktop workspace inspired by [different-ai/openwork](https://github.com/different-ai/openwork), supercharged by **VeloxLLM**.
-
-## 💡 Inspiration & Evolution
-
-This project is deeply inspired by and evolves the ideas and architecture of **OpenWork**:
-
-* **🖥️ Desktop Workspace UX**: Inherits OpenWork's minimal desktop workspace interaction and Headless Web mode, with file-tree browsing, multi-turn conversations, and streaming output.
-* **🔌 Built-in MCP Support**: Continues OpenWork's standard integration with the Model Context Protocol (MCP), supporting local filesystems, browser automation, and developer toolchains.
-* **⚡ Velox-Accelerated Backend**: Reworks and accelerates inference calls and task execution loops on top of OpenWork's Agent orchestration, reducing end-to-end token latency and memory usage.
-* **🛡️ Human-in-the-Loop Safety**: Preserves core security auditing and requires explicit authorization for dangerous terminal commands and sensitive file writes.
-
-## 🙏 Acknowledgements
-
-Special thanks to the [OpenWork](https://github.com/different-ai/openwork) community and contributors for providing an outstanding foundation and open-source blueprint for desktop AI agents.
-
-## 📄 License
-
-VeloxOpenWork is distributed under the MIT License. If this project uses or modifies OpenWork code, the original copyright notices and license information are retained. See [LICENSE](./LICENSE) for the full terms and attribution details.
+Thanks to the [OpenWork](https://github.com/different-ai/openwork) community and contributors for the open-source foundation. VeloxOpenWork retains upstream copyright attribution. Repository content is available under the MIT License, while third-party components remain under their original licenses. See [LICENSE](./LICENSE).
