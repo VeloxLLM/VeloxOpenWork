@@ -766,7 +766,7 @@ export function OpenworkRouteControlActions() {
           type: "string",
           required: true,
           description:
-            "Settings tab: general | ai | preferences | permissions | shell | environment | advanced | appearance | updates | recovery | debug | cloud-account | cloud-providers",
+            "Settings tab: general | ai | preferences | permissions | shell | environment | advanced | appearance | debug",
         },
       ],
       previewArgs: { panel: "ai" },
@@ -807,7 +807,7 @@ export function OpenworkRouteControlActions() {
       execute: () => ({
         capabilities: [
           { id: "browse", label: "Browse the web", description: "Control a browser to navigate, scrape, and automate web tasks." },
-          { id: "providers", label: "AI model providers", description: "Connect Anthropic, OpenAI, Google, OpenRouter, Ollama, or other LLM providers." },
+          { id: "providers", label: "AI model providers", description: "Connect manually configured AI model providers." },
           { id: "extensions", label: "Library", description: "Skills, connections, and tools your agent can use." },
           { id: "voice", label: "Voice mode", description: "Talk to OpenWork with real-time voice using OpenAI Realtime." },
           { id: "files", label: "File management", description: "Read, write, and organize files in your workspace." },

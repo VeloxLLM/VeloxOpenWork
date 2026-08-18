@@ -140,16 +140,16 @@ describe("updateJsoncPath", () => {
       "utf8",
     );
 
-    await updateJsoncPath(file, ["provider", "ollama"], {
+    await updateJsoncPath(file, ["provider", "custom"], {
       npm: "@ai-sdk/openai-compatible",
-      name: "Ollama (local)",
+      name: "Custom provider",
       options: { baseURL: "http://localhost:11434/v1" },
       models: { llama2: { name: "Llama 2" } },
     });
 
     const next = await readFile(file, "utf8");
     expect(next).toContain('"openai"');
-    expect(next).toContain('"ollama"');
+    expect(next).toContain('"custom"');
     expect(next).toContain('"baseURL": "http://localhost:11434/v1"');
   });
 });

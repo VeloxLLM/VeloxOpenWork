@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import type { McpDirectoryInfo } from "../../../app/constants";
 import { extensionContribution } from "../../../app/extensions";
 import type { OpenworkServerClient } from "../../../app/lib/openwork-server";
-import type { LocalProviderInstallInput } from "./openai-image-extension";
 
 /**
  * Context bag that the settings route passes to extension config factories.
@@ -35,12 +34,6 @@ export type ExtensionConfigContext = {
     envKeyDetected: boolean;
     onSaveApiKey: (apiKey: string) => void | Promise<void>;
     onTestSession: () => void | Promise<void>;
-  };
-  localProvider: {
-    busy: boolean;
-    status: string | null;
-    error: string | null;
-    onInstall: (input: LocalProviderInstallInput) => void | Promise<void>;
   };
 };
 

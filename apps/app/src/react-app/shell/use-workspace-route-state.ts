@@ -22,10 +22,9 @@ import {
 } from "@/app/lib/desktop";
 import { createClient } from "@/app/lib/opencode";
 import { createOpenworkServerClient, type OpenworkServerClient } from "@/app/lib/openwork-server";
-import { readDenBootstrapConfig } from "@/app/lib/den";
-import { isDesktopRuntime } from "@/app/lib/runtime-env";
 import type { ResolvedWorkspaceEndpoint } from "@/app/lib/workspace-endpoint";
 import type { WorkspaceConnectionState } from "@/app/types";
+import { isDesktopRuntime } from "@/app/lib/runtime-env";
 import { normalizeDirectoryPath } from "@/app/utils";
 import { t } from "@/i18n";
 import {
@@ -38,7 +37,6 @@ import {
   testRemoteWorkspaceConnection,
 } from "@/react-app/domains/workspace/remote-workspace-diagnostics";
 import { useLocal } from "@/react-app/kernel/local-provider";
-import { useDenAuth } from "@/react-app/domains/cloud/den-auth-provider";
 import { useBootState } from "./boot-state";
 import {
   ensureDesktopLocalOpenworkConnection,
@@ -114,7 +112,6 @@ export function useWorkspaceRouteState(input: UseWorkspaceRouteStateInput) {
   const navigate = useNavigate();
   const location = useLocation();
   const local = useLocal();
-  const denAuth = useDenAuth();
   const params = useParams<{ workspaceId?: string; sessionId?: string }>();
   const routeWorkspaceId = params.workspaceId?.trim() || "";
   const selectedSessionId = params.sessionId?.trim() || null;
@@ -850,21 +847,6 @@ export function useWorkspaceRouteState(input: UseWorkspaceRouteStateInput) {
     selectedWorkspaceId,
     workspaces,
   ]);
-
-  // Redirect to /welcome when no workspaces exist and the user hasn't
-  // completed onboarding. Desktop only does this for the default hosted
-  // bootstrap; org-bound desktops should keep their sign-in gate instead.
-  useEffect(() => {
-    if (loading) return;
-    if (workspaces.length > 0) return;
-    if (local.prefs.hasCompletedOnboarding) return;
-    if (denAuth.status === "checking") return;
-    if (denAuth.isSignedIn) return;
-    if (isDesktopRuntime()) {
-      if (readDenBootstrapConfig().source !== "default") return;
-    }
-    navigate("/welcome", { replace: true });
-  }, [denAuth.isSignedIn, denAuth.status, loading, local.prefs.hasCompletedOnboarding, navigate, workspaces.length]);
 
   // NOTE: Blueprint seeding was removed from the route.
   // It was firing `materializeBlueprintSessions` + a session re-fetch on every

@@ -523,6 +523,14 @@ export type DesktopCommandMap = {
   providerSecretGet: { args: [providerId: string]; result: string | null };
   providerSecretSet: { args: [providerId: string, value: string]; result: ExecResult };
   providerSecretDelete: { args: [providerId: string]; result: ExecResult };
+  providerProxyGet: { args: [providerId: string]; result: string | null };
+  providerProxySet: { args: [providerId: string, value: string]; result: ExecResult };
+  providerProxyDelete: { args: [providerId: string]; result: ExecResult };
+  providerGatewayUrl: { args: []; result: string | null };
+  providerGatewayTest: {
+    args: [input: { providerId: string; baseUrl: string; proxyUrl?: string | null }];
+    result: ExecResult;
+  };
   /**
    * The renderer passes its reset-modal mode, but the main process currently
    * IGNORES it and always removes workspace state + bootstrap config; only

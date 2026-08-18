@@ -18,7 +18,7 @@ export const LANGUAGES: Language[] = ["en", "zh"];
  */
 export const LANGUAGE_OPTIONS = [
   { value: "en" as Language, label: "English", nativeName: "English" },
-  { value: "zh" as Language, label: "Chinese (Simplified)", nativeName: "简体中文" },
+  { value: "zh" as Language, label: "中文", nativeName: "中文" },
 ] as const;
 
 const PLURAL_SUFFIX_EMPTY_LANGUAGES = new Set<Language>(["zh"]);
@@ -52,7 +52,7 @@ export const isLanguage = (value: unknown): value is Language => {
   return typeof value === "string" && LANGUAGES.includes(value as Language);
 };
 
-let localeValue: Language = "en";
+let localeValue: Language = "zh";
 
 /**
  * Get current locale
@@ -67,8 +67,8 @@ function locale(): Language {
  */
 export const setLocale = (newLocale: Language) => {
   if (!isLanguage(newLocale)) {
-    console.warn(`Invalid locale: ${newLocale}, falling back to "en"`);
-    newLocale = "en";
+    console.warn(`Invalid locale: ${newLocale}, falling back to "zh"`);
+    newLocale = "zh";
   }
 
   localeValue = newLocale;
@@ -165,7 +165,7 @@ export const t = (
  */
 export const initLocale = (): Language => {
   if (typeof window === "undefined") {
-    return "en";
+    return "zh";
   }
 
   try {
@@ -182,8 +182,9 @@ export const initLocale = (): Language => {
   }
 
   if (typeof document !== "undefined") {
-    document.documentElement.setAttribute("lang", "en");
+    document.documentElement.setAttribute("lang", "zh");
   }
 
-  return "en";
+  localeValue = "zh";
+  return "zh";
 };

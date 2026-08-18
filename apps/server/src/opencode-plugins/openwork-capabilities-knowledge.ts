@@ -8,7 +8,7 @@ import { z } from "zod";
  *
  * Injects knowledge about OpenWork's capabilities into the agent's system
  * prompt so it can proactively help users with:
- * - Adding AI providers (including local models via Ollama)
+ * - Adding AI providers through the local provider settings
  * - Fixing authorized folders
  * - Enabling computer use
  * - Connecting MCP extensions, including OpenWork Cloud MCP

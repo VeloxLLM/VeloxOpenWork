@@ -6,7 +6,6 @@ import { evaluateEnablement, type EnablementContext } from "../../../app/enablem
 import type { OpenworkServerClient } from "../../../app/lib/openwork-server";
 import type { McpServerEntry } from "../../../app/types";
 import { getExtensionConfigSlot, type ExtensionConfigContext } from "./extension-registry";
-import type { LocalProviderInstallInput } from "./openai-image-extension";
 
 type ProviderLike = {
   id: string;
@@ -40,12 +39,6 @@ type SettingsExtensionControllerInput = {
     onSaveApiKey: (apiKey: string) => void | Promise<void>;
     onTestSession: () => void | Promise<void>;
   };
-  localProvider: {
-    busy: boolean;
-    status: string | null;
-    error: string | null;
-    onInstall: (input: LocalProviderInstallInput) => void | Promise<void>;
-  };
 };
 
 function hasOpenAiEnv(input: Pick<SettingsExtensionControllerInput, "providers" | "providerConnectedIds" | "userEnvKeys">) {
@@ -76,7 +69,6 @@ export function useSettingsExtensionController(input: SettingsExtensionControlle
       ...input.voiceExtension,
       envKeyDetected: hasOpenAiEnv(input),
     },
-    localProvider: input.localProvider,
   }), [input]);
 
   const configSlotForEntry = useCallback(

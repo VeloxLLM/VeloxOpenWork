@@ -79,6 +79,7 @@ import {
   setOpenworkSentrySession,
 } from "./sentry.mjs";
 import { installStdioErrorHandlers } from "./stdio-errors.mjs";
+import { createProviderGateway } from "./provider-gateway.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = path.resolve(__dirname, "../../..");
@@ -1237,6 +1238,7 @@ const runtimeManager = createRuntimeManager({
         loadSafeStorage: () => require("electron").safeStorage,
       }),
 });
+const providerGateway = createProviderGateway({ getProxyUrl: getProviderProxy });
 const initialRunnerBootstrap = workspaceStore.readDesktopBootstrapConfigSync();
 const legacyRunnerBaseUrls = [
   initialRunnerBootstrap.apiBaseUrl,
@@ -1431,13 +1433,16 @@ function providerSecretsPath() {
   return path.join(app.getPath("userData"), "veloxopenwork-provider-secrets.json");
 }
 
+function providerProxySecretsPath() {
+  return path.join(app.getPath("userData"), "veloxopenwork-provider-proxy-secrets.json");
+}
+
 function providerSecretEnvironmentKey(providerId) {
   const safeId = String(providerId ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
   return `VELOXOPENWORK_PROVIDER_${safeId}_API_KEY`;
 }
 
-async function readProviderSecrets() {
-  const filePath = providerSecretsPath();
+async function readSecureSecretMap(filePath) {
   if (!(await pathExists(filePath))) return {};
   try {
     const raw = await readFile(filePath, "utf8");
@@ -1452,15 +1457,41 @@ async function readProviderSecrets() {
   }
 }
 
-async function writeProviderSecrets(secrets) {
+async function writeSecureSecretMap(filePath, secrets) {
   const safeStorage = require("electron").safeStorage;
-  if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error("OS secure storage is unavailable");
-  }
+  if (!safeStorage.isEncryptionAvailable()) throw new Error("OS secure storage is unavailable");
   const encrypted = safeStorage.encryptString(JSON.stringify(secrets));
-  const filePath = providerSecretsPath();
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, JSON.stringify({ version: 1, data: encrypted.toString("base64") }), "utf8");
+}
+
+async function readProviderSecrets() {
+  return readSecureSecretMap(providerSecretsPath());
+}
+
+async function writeProviderSecrets(secrets) {
+  await writeSecureSecretMap(providerSecretsPath(), secrets);
+}
+
+async function getProviderProxy(providerId) {
+  const secrets = await readSecureSecretMap(providerProxySecretsPath());
+  const value = secrets[providerId];
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+async function setProviderProxy(providerId, value) {
+  const secrets = await readSecureSecretMap(providerProxySecretsPath());
+  if (value.trim()) secrets[providerId] = value.trim();
+  else delete secrets[providerId];
+  await writeSecureSecretMap(providerProxySecretsPath(), secrets);
+  return execResult(true, "Provider proxy saved securely");
+}
+
+async function deleteProviderProxy(providerId) {
+  const secrets = await readSecureSecretMap(providerProxySecretsPath());
+  delete secrets[providerId];
+  await writeSecureSecretMap(providerProxySecretsPath(), secrets);
+  return execResult(true, "Provider proxy removed");
 }
 
 async function getProviderSecret(providerId) {
@@ -2141,6 +2172,19 @@ const desktopCommandHandlers = {
   "providerSecretSet": async (event, ...args) =>
     setProviderSecret(String(args[0] ?? "").trim(), String(args[1] ?? "")),
   "providerSecretDelete": async (event, ...args) => deleteProviderSecret(String(args[0] ?? "").trim()),
+  "providerProxyGet": async (event, ...args) => getProviderProxy(String(args[0] ?? "").trim()),
+  "providerProxySet": async (event, ...args) =>
+    setProviderProxy(String(args[0] ?? "").trim(), String(args[1] ?? "")),
+  "providerProxyDelete": async (event, ...args) => deleteProviderProxy(String(args[0] ?? "").trim()),
+  "providerGatewayUrl": async () => providerGateway.start(),
+  "providerGatewayTest": async (event, ...args) => {
+    const input = args[0] && typeof args[0] === "object" ? args[0] : {};
+    return providerGateway.test({
+      providerId: String(input.providerId ?? "").trim(),
+      baseUrl: String(input.baseUrl ?? "").trim(),
+      proxyUrl: typeof input.proxyUrl === "string" ? input.proxyUrl : null,
+    });
+  },
   "resetOpenworkState": async (event, ...args) => {
       return workspaceStore.resetOpenworkState();
   },
@@ -2686,6 +2730,7 @@ or use: pnpm dev:worktree`);
     void Promise.all([
       disposeRuntimeBeforeQuit(),
       uiControlServer.stop(),
+      providerGateway.stop(),
     ]).finally(() => {
       scheduleBlankSlateProfileCleanup();
       app.quit();
@@ -2715,6 +2760,7 @@ or use: pnpm dev:worktree`);
 
   app.whenReady().then(async () => {
     await hydrateProviderSecretEnvironment();
+    await providerGateway.start();
     const systemCaCertificates = await runtimeManager.systemCaCertificates();
     session.defaultSession.setCertificateVerifyProc(createSystemCaCertificateVerifyProc(systemCaCertificates));
     installMediaPermissionHandlers(session, () => mainWindow);

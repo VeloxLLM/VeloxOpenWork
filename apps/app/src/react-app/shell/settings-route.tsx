@@ -65,7 +65,6 @@ import ProviderAuthModal from "@/react-app/domains/connections/provider-auth/pro
 import ConnectionsModals from "@/react-app/domains/connections/modals";
 import { AiSettingsView } from "@/react-app/domains/settings/pages/ai-view";
 // Side-effect imports: register extension config components into the registry.
-import "@/react-app/domains/settings/ollama-config";
 import "@/react-app/domains/settings/computer-use-config";
 import "@/react-app/domains/settings/browser-extension-config";
 import "@/react-app/domains/settings/openwork-voice-config";
@@ -118,10 +117,16 @@ import {
   writeOpencodeConfig,
   providerSecretSet,
   providerSecretDelete,
+  providerProxyGet,
+  providerProxySet,
+  providerProxyDelete,
+  providerGatewayUrl,
+  providerGatewayTest,
   type WorkspaceInfo,
   type WorkspaceList,
   revealDesktopItemInDir,
 } from "@/app/lib/desktop";
+import { providerGatewayBaseUrl } from "@/app/provider-catalog";
 import { isDesktopProviderBlocked } from "@/app/cloud/desktop-app-restrictions";
 import { useCheckDesktopRestriction, useDesktopConfig } from "@/react-app/domains/cloud/desktop-config-provider";
 import { useRestrictionNotice } from "@/react-app/domains/cloud/restriction-notice-provider";
@@ -183,12 +188,7 @@ import {
   createWorkspaceServerClientResolver,
   useWorkspaceServerClient,
 } from "@/react-app/infra/workspace-server-client";
-import {
-  buildLocalProviderConfig,
-  OPENAI_IMAGE_EXTENSION_ID,
-  OPENAI_IMAGE_MODEL,
-  type LocalProviderInstallInput,
-} from "@/react-app/domains/settings/openai-image-extension";
+import { OPENAI_IMAGE_EXTENSION_ID, OPENAI_IMAGE_MODEL } from "@/react-app/domains/settings/openai-image-extension";
 import {
   libraryAgentsFromOpencode,
   libraryCommandsFromSlashOptions,
@@ -491,9 +491,6 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
   const [autoCompactContext, setAutoCompactContext] = useState(true);
   const [autoCompactContextBusy, setAutoCompactContextBusy] = useState(false);
   const [autoCompactContextLoaded, setAutoCompactContextLoaded] = useState(false);
-  const [localProviderBusy, setLocalProviderBusy] = useState(false);
-  const [localProviderStatus, setLocalProviderStatus] = useState<string | null>(null);
-  const [localProviderError, setLocalProviderError] = useState<string | null>(null);
   const [imageExtensionBusy, setImageExtensionBusy] = useState(false);
   const [imageExtensionStatus, setImageExtensionStatus] = useState<string | null>(null);
   const [imageExtensionError, setImageExtensionError] = useState<string | null>(null);
@@ -1200,63 +1197,15 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     }
   }, [openworkClient]);
 
-  const installLocalProvider = useCallback(async (input: LocalProviderInstallInput) => {
-    const client = selectedWorkspaceEndpoint?.client ?? openworkClient;
-    const workspaceId = runtimeWorkspaceId?.trim() ?? "";
-    const modelId = input.modelId.trim();
-    if (!client || !workspaceId) {
-      setLocalProviderError("OpenWork server is not connected for this workspace.");
-      return;
-    }
-    if (!modelId) {
-      setLocalProviderError("Model ID is required.");
-      return;
-    }
-
-    setLocalProviderBusy(true);
-    setLocalProviderStatus(null);
-    setLocalProviderError(null);
-    try {
-      await client.patchConfig(workspaceId, {
-        opencode: {
-          provider: {
-            [input.providerId]: buildLocalProviderConfig({ ...input, modelId }),
-          },
-        },
-      });
-      if (input.setDefault) {
-        local.setPrefs((previous) => ({
-          ...previous,
-          defaultModel: { providerID: input.providerId, modelID: modelId },
-          modelVariant: null,
-        }));
-      }
-      reloadCoordinator.markReloadRequired("config", { type: "config", name: "opencode.json", action: "updated" });
-      try {
-        await reloadEngineOrRestartDesktop(client, workspaceId);
-      } catch {
-        // The reload toast still lets the user retry if the immediate reload fails.
-      }
-      await refreshProviderListQueries(getReactQueryClient());
-      try {
-        window.dispatchEvent(new CustomEvent("openwork-server-settings-changed"));
-      } catch {
-        // ignore browser event dispatch failures
-      }
-      setLocalProviderStatus(`Added ${input.name} with ${modelId}.`);
-    } catch (error) {
-      setLocalProviderError(describeRouteError(error));
-    } finally {
-      setLocalProviderBusy(false);
-    }
-  }, [local, openworkClient, reloadCoordinator, runtimeWorkspaceId, selectedWorkspaceEndpoint]);
-
   const saveManualProvider = useCallback(async (input: {
     id: string;
     name: string;
     baseUrl: string;
     apiKey: string;
     modelIds: string[];
+    proxyUrl: string;
+    proxyUsername: string;
+    proxyPassword: string;
   }) => {
     const current = await readOpencodeConfig("global", "");
     let config: Record<string, unknown> = {};
@@ -1274,22 +1223,46 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       ? providers[input.id] as Record<string, unknown>
       : {};
     const models = Object.fromEntries(input.modelIds.map((modelId) => [modelId, { name: modelId }]));
+    const gatewayUrl = await providerGatewayUrl().catch(() => null);
+    const options = {
+      ...(existing.options && typeof existing.options === "object" ? existing.options : {}),
+      baseURL: providerGatewayBaseUrl(gatewayUrl, input.id, input.baseUrl),
+    } as Record<string, unknown>;
+    const existingApiKey = typeof options.apiKey === "string" && options.apiKey.trim().length > 0;
+    if (input.apiKey.trim() || existingApiKey) {
+      options.apiKey = "${VELOXOPENWORK_PROVIDER_" + input.id.toUpperCase().replace(/[^A-Z0-9]+/g, "_") + "_API_KEY}";
+    } else {
+      delete options.apiKey;
+    }
     providers[input.id] = {
       ...existing,
       name: input.name,
-      options: {
-        ...(existing.options && typeof existing.options === "object" ? existing.options : {}),
-        baseURL: input.baseUrl,
-        apiKey: "${VELOXOPENWORK_PROVIDER_" + input.id.toUpperCase().replace(/[^A-Z0-9]+/g, "_") + "_API_KEY}",
-      },
+      options,
       models,
     };
     config.provider = providers;
     await writeOpencodeConfig("global", "", `${JSON.stringify(config, null, 2)}\n`);
     if (input.apiKey.trim()) {
       await providerSecretSet(input.id, input.apiKey.trim());
-    } else if (!existing) {
+    } else if (!existingApiKey) {
       await providerSecretDelete(input.id);
+    }
+    const previousProxy = await providerProxyGet(input.id).catch(() => null);
+    const proxyInput = input.proxyUrl.trim();
+    if (proxyInput) {
+      const proxy = new URL(proxyInput);
+      if (proxy.protocol !== "http:" && proxy.protocol !== "https:") {
+        throw new Error("代理地址无效：仅支持 HTTP/HTTPS 代理。");
+      }
+      if (input.proxyUsername.trim()) proxy.username = input.proxyUsername.trim();
+      if (input.proxyPassword) proxy.password = input.proxyPassword;
+      else if (!proxy.password && previousProxy) {
+        const previous = new URL(previousProxy);
+        proxy.password = previous.password;
+      }
+      await providerProxySet(input.id, proxy.toString());
+    } else {
+      await providerProxyDelete(input.id);
     }
     setConfigActionStatus(`Saved ${input.name}.`);
     await providerAuthStore.refreshProviders();
@@ -1915,12 +1888,6 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       error: voiceError,
       onSaveApiKey: saveVoiceApiKey,
       onTestSession: testVoiceSession,
-    },
-    localProvider: {
-      busy: localProviderBusy,
-      status: localProviderStatus,
-      error: localProviderError,
-      onInstall: installLocalProvider,
     },
   });
   const extensionCatalogPlatform = resolveOpenWorkExtensionCatalogPlatform(platform.platform, platform.os);
@@ -2562,6 +2529,22 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
         onSubmitOAuth={providerAuthStore.completeProviderAuthOAuth}
         onRefreshProviders={providerAuthStore.refreshProviders}
         onSubmitManual={saveManualProvider}
+        onTestConnection={async (input) => {
+          let proxyUrl = input.proxyUrl.trim();
+          if (proxyUrl && (input.proxyUsername.trim() || input.proxyPassword)) {
+            const proxy = new URL(proxyUrl);
+            if (input.proxyUsername.trim()) proxy.username = input.proxyUsername.trim();
+            if (input.proxyPassword) proxy.password = input.proxyPassword;
+            proxyUrl = proxy.toString();
+          }
+          const result = await providerGatewayTest({
+            providerId: input.id,
+            baseUrl: input.baseUrl,
+            proxyUrl: proxyUrl || null,
+          });
+          if (!result.ok) throw new Error(result.stderr || result.stdout || "连接失败。");
+          return result.stdout || "连接成功。";
+        }}
         showOpenWorkModelsSubscribe={showOpenWorkModelsSubscribe}
         onSubscribeOpenWorkModels={subscribeToOpenWorkModels}
         onClose={() => providerAuthStore.closeProviderAuthModal()}

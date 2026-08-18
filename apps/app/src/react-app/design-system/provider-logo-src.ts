@@ -58,7 +58,6 @@ const PROVIDER_DOMAINS: Record<string, string> = {
   openrouter: "openrouter.ai",
   perplexity: "perplexity.ai",
   huggingface: "huggingface.co",
-  ollama: "ollama.com",
   xai: "x.ai",
   opencode: "opencode.ai",
   openwork: "openworklabs.com",

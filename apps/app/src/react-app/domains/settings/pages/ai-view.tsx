@@ -41,9 +41,9 @@ export function AiSettingsView(props: AiSettingsViewProps) {
     <LayoutStack>
       <LayoutSection>
         <LayoutSectionHeader>
-          <LayoutSectionTitle>Model Providers</LayoutSectionTitle>
+          <LayoutSectionTitle>{t("settings.ai.providers_title")}</LayoutSectionTitle>
           <LayoutSectionDescription>
-            Add providers manually. API keys stay on this device and are never synchronized to a cloud account.
+            {t("settings.ai.providers_description")}
           </LayoutSectionDescription>
         </LayoutSectionHeader>
         <LayoutSectionItem>
@@ -54,7 +54,7 @@ export function AiSettingsView(props: AiSettingsViewProps) {
             </LayoutSectionItemTitle>
             {props.canAddProviders ? (
               <Button onClick={() => void props.onOpenProviderAuth()} disabled={props.busy || props.providerAuthBusy}>
-                {props.providerAuthBusy ? "Loading..." : "Add provider"}
+                {props.providerAuthBusy ? t("common.loading") : t("settings.ai.add_provider")}
               </Button>
             ) : null}
           </LayoutSectionItemHeader>
@@ -80,14 +80,14 @@ export function AiSettingsView(props: AiSettingsViewProps) {
                     onClick={() => void props.onDisconnectProvider(provider.id)}
                     disabled={props.busy || props.providerAuthBusy}
                   >
-                    Disconnect
+                    {t("settings.ai.disconnect")}
                   </Button>
                 ) : null}
               </LayoutSectionItem>
             ))}
           </div>
         ) : (
-          <SettingsNotice>No providers configured. Add one to select a model.</SettingsNotice>
+          <SettingsNotice>{t("settings.ai.empty")}</SettingsNotice>
         )}
 
         {props.providerConnectError ? <SettingsNotice tone="error">{props.providerConnectError}</SettingsNotice> : null}

@@ -3,12 +3,12 @@ import { describe, expect, test } from "bun:test";
 import { mergeRuntimeProviderUpdate } from "./runtime-opencode-config-store.js";
 
 describe("mergeRuntimeProviderUpdate", () => {
-  const ollama = { npm: "@ai-sdk/openai-compatible", name: "Ollama" };
+  const localProvider = { npm: "@ai-sdk/openai-compatible", name: "Custom provider" };
   const cloud = { npm: "@ai-sdk/openai-compatible", name: "Cloud Provider" };
 
   test("upserts new providers and keeps existing ones", () => {
-    expect(mergeRuntimeProviderUpdate({ ollama }, { lpr_x: cloud })).toEqual({
-      ollama,
+    expect(mergeRuntimeProviderUpdate({ custom: localProvider }, { lpr_x: cloud })).toEqual({
+      custom: localProvider,
       lpr_x: cloud,
     });
   });
@@ -19,8 +19,8 @@ describe("mergeRuntimeProviderUpdate", () => {
   });
 
   test("null deletes a provider without touching others", () => {
-    expect(mergeRuntimeProviderUpdate({ ollama, lpr_x: cloud }, { lpr_x: null })).toEqual({
-      ollama,
+    expect(mergeRuntimeProviderUpdate({ custom: localProvider, lpr_x: cloud }, { lpr_x: null })).toEqual({
+      custom: localProvider,
     });
   });
 
@@ -29,12 +29,12 @@ describe("mergeRuntimeProviderUpdate", () => {
   });
 
   test("ignores non-record, non-null values", () => {
-    expect(mergeRuntimeProviderUpdate({ ollama }, { bad: "string", worse: 42 })).toEqual({
-      ollama,
+    expect(mergeRuntimeProviderUpdate({ custom: localProvider }, { bad: "string", worse: 42 })).toEqual({
+      custom: localProvider,
     });
   });
 
   test("deleting a missing provider is a no-op", () => {
-    expect(mergeRuntimeProviderUpdate({ ollama }, { lpr_missing: null })).toEqual({ ollama });
+    expect(mergeRuntimeProviderUpdate({ custom: localProvider }, { lpr_missing: null })).toEqual({ custom: localProvider });
   });
 });
