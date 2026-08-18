@@ -1,0 +1,10 @@
+extends: ./electron-builder.base.yml
+appId: com.veloxllm.veloxopenwork
+productName: VeloxOpenWork
+protocols:
+  - name: VeloxOpenWork
+    schemes:
+      - openwork
+linux:
+  executableName: veloxopenwork
+artifactName: veloxopenwork-${os}-${arch}-${version}.${ext}
