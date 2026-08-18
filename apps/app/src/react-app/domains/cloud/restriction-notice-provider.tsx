@@ -30,6 +30,11 @@ const RestrictionNoticeContext = createContext<RestrictionNoticeController | und
   undefined,
 );
 
+const LOCAL_RESTRICTION_NOTICE: RestrictionNoticeController = {
+  show: () => undefined,
+  dismiss: () => undefined,
+};
+
 type RestrictionNoticeProviderProps = {
   children: ReactNode;
 };
@@ -80,10 +85,5 @@ export function RestrictionNoticeProvider({ children }: RestrictionNoticeProvide
 
 export function useRestrictionNotice(): RestrictionNoticeController {
   const context = use(RestrictionNoticeContext);
-  if (!context) {
-    throw new Error(
-      "useRestrictionNotice must be used within a RestrictionNoticeProvider",
-    );
-  }
-  return context;
+  return context ?? LOCAL_RESTRICTION_NOTICE;
 }

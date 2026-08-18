@@ -124,6 +124,16 @@ export type DenAuthStore = {
 
 const DenAuthContext = createContext<DenAuthStore | undefined>(undefined);
 
+// The local desktop build does not mount a Cloud authentication provider.
+// Keep consumers safe while the legacy Cloud domain is being phased out.
+const LOCAL_DEN_AUTH: DenAuthStore = {
+  status: "signed_out",
+  user: null,
+  error: null,
+  isSignedIn: false,
+  refresh: async () => undefined,
+};
+
 type DenAuthProviderProps = {
   children: ReactNode;
 };
@@ -562,8 +572,5 @@ export function DenAuthProvider({ children }: DenAuthProviderProps) {
 
 export function useDenAuth(): DenAuthStore {
   const context = use(DenAuthContext);
-  if (!context) {
-    throw new Error("useDenAuth must be used within a DenAuthProvider");
-  }
-  return context;
+  return context ?? LOCAL_DEN_AUTH;
 }

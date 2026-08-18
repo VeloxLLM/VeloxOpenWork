@@ -62,6 +62,13 @@ const DesktopConfigContext = createContext<DesktopConfigStore | undefined>(
 );
 
 const DEFAULT_DESKTOP_CONFIG: DenDesktopConfig = {};
+const LOCAL_DESKTOP_CONFIG: DesktopConfigStore = {
+  config: DEFAULT_DESKTOP_CONFIG,
+  loading: false,
+  refresh: async () => undefined,
+  refreshFresh: async () => DEFAULT_DESKTOP_CONFIG,
+  checkRestriction: () => true,
+};
 const DESKTOP_CONFIG_REFRESH_MS = 60 * 60 * 1000;
 const DESKTOP_CONFIG_ITEMS = [
   ...desktopPolicyKeys,
@@ -461,10 +468,7 @@ export function DesktopConfigProvider({ children }: DesktopConfigProviderProps) 
 
 export function useDesktopConfig(): DesktopConfigStore {
   const context = use(DesktopConfigContext);
-  if (!context) {
-    throw new Error("useDesktopConfig must be used within a DesktopConfigProvider");
-  }
-  return context;
+  return context ?? LOCAL_DESKTOP_CONFIG;
 }
 
 /**

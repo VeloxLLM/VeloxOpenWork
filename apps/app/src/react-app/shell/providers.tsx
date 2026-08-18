@@ -6,7 +6,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { isWebDeployment } from "@/app/lib/openwork-deployment";
 import { hydrateOpenworkServerSettingsFromEnv } from "@/app/lib/openwork-server";
 import { isDesktopRuntime } from "@/app/utils";
-import { AutomationRunnerBridge } from "@/react-app/domains/automations/automation-runner-bridge";
 import { LocalProvider } from "@/react-app/kernel/local-provider";
 import { ServerProvider } from "@/react-app/kernel/server-provider";
 import { ArchitectureMismatchGate } from "./architecture-mismatch-gate";
@@ -52,7 +51,6 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <ArchitectureMismatchGate>
           <DesktopRuntimeBoot />
           <LocalProvider>
-            <AutomationRunnerBridge enabled={isDesktopRuntime()} />
             <ReloadCoordinatorProvider>
               {children}
             </ReloadCoordinatorProvider>
